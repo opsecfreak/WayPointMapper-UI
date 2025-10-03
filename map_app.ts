@@ -366,7 +366,7 @@ export class MapApp extends LitElement {
   private weatherOverlays: (google.maps.marker.AdvancedMarkerElement | google.maps.Rectangle)[] = [];
   private weatherEffect: WeatherEffect = {
     windVector: { x: 0, y: 0 },
-    visibility: 10000,
+    visibility: WEATHER_THRESHOLDS.VISIBILITY_MIN,
     precipitation: false,
     turbulence: 0
   };
