@@ -454,11 +454,57 @@ export class MapApp extends LitElement {
   @state() private autoAddWaypoints = true; // New state for automatic waypoint adding
   @state() private darkMode = false; // New state for dark mode
 
+  // Simulation Mode State Properties
+  @state() private simulationState: SimulationState = {
+    isActive: false,
+    isPaused: false,
+    currentWaypointIndex: 0,
+    progress: 0,
+    speedMultiplier: 1.0,
+    startTime: 0,
+    elapsedTime: 0,
+    totalDistance: 0,
+    distanceTraveled: 0,
+    estimatedTimeRemaining: 0,
+    stepMode: false
+  };
+  @state() private droneTelemetry: DroneTelemetry = {
+    latitude: 0,
+    longitude: 0,
+    altitude: 0,
+    speed: 0,
+    heading: 0,
+    battery: 100,
+    windSpeed: 0,
+    windDirection: 0,
+    groundSpeed: 0,
+    timeToWaypoint: 0,
+    distanceToWaypoint: 0
+  };
+  @state() private droneTrail: SimulationTrail = {
+    positions: [],
+    maxLength: 100
+  };
+  @state() private showSimulationControls = false;
+  @state() private showTopBar = false;
+
   private map?: google.maps.Map;
   private geocoder?: google.maps.Geocoder;
   private mapMarkers = new Map<string, google.maps.marker.AdvancedMarkerElement>();
   private flightPath?: google.maps.Polyline;
   private weatherFetchTimeout: number | undefined;
+  
+  // Simulation Private Properties
+  private droneMarker?: google.maps.marker.AdvancedMarkerElement;
+  private trailPolyline?: google.maps.Polyline;
+  private simulationAnimationId?: number;
+  private telemetryUpdateInterval?: number;
+  private weatherEffect: WeatherEffect = {
+    windVector: { x: 0, y: 0 },
+    visibility: 10000,
+    precipitation: false,
+    turbulence: 0
+  };
 
   createRenderRoot() {
     return this;
