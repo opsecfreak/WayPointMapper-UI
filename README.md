@@ -257,10 +257,59 @@ const waypoints = mission.waypoints.map(wp => ({
 }));
 ```
 
+## � Documentation
+
+### Version 2.0 Documentation (New!)
+
+**Quick Start**:
+- 📖 **[QUICK_START.md](QUICK_START.md)** - New features overview and quick guide
+
+**For Users**:
+- 📘 **[USER_GUIDE.md](USER_GUIDE.md)** - Complete 700+ line user manual
+  - Getting started tutorial
+  - All features explained
+  - Step-by-step workflows
+  - Troubleshooting guide
+
+**For Developers**:
+- 🔧 **[HOME_POINT_IMPLEMENTATION.md](HOME_POINT_IMPLEMENTATION.md)** - Home point system technical docs
+- 🧪 **[TEST_SCENARIOS.md](TEST_SCENARIOS.md)** - 35 comprehensive test cases
+- 📋 **[FINAL_REPORT.md](FINAL_REPORT.md)** - Complete implementation summary
+- 📊 **[COMPLETE_ENHANCEMENT_PLAN.md](COMPLETE_ENHANCEMENT_PLAN.md)** - Feature roadmap
+
+**Additional Resources**:
+- 🎮 **[SIMULATION_MODE_DOCUMENTATION.md](SIMULATION_MODE_DOCUMENTATION.md)** - Simulation guide
+- ⚙️ **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup guide
+
+## 🆕 What's New in Version 2.0
+
+### Home Point Management
+- ✅ Dedicated home point UI in waypoints tab
+- ✅ "Set as Home Point" button for easy changing
+- ✅ "Go to Home Point" quick navigation
+- ✅ Blue marker visual distinction
+- ✅ RTH (Return to Home) support
+
+### Search History
+- ✅ Recent searches dropdown (last 10 locations)
+- ✅ Persistent storage across sessions
+- ✅ One-click navigation to previous searches
+- ✅ Clear button for search box
+- ✅ "Clear All" for bulk history removal
+
+### UI Polish
+- ✅ Ripple effects on button clicks
+- ✅ Enhanced hover and active states
+- ✅ Loading spinners for async operations
+- ✅ Smooth animations and transitions
+- ✅ Professional visual feedback
+
+See **[QUICK_START.md](QUICK_START.md)** for details!
+
 ## 📞 Support & Community
 
 ### Getting Help
-- **Documentation**: Check this README for detailed guidance
+- **Documentation**: See comprehensive guides above
 - **Issues**: Report bugs via GitHub Issues
 - **Feature Requests**: Suggest improvements through GitHub
 - **Community**: Join discussions with other UAV professionals
