@@ -918,3 +918,78 @@ body {
   color: #0c5460;
   margin: 2px 0;
 }
+
+/* METAR and TAF Styles */
+.metar-card, .taf-card {
+  border-left: 4px solid #2196F3;
+}
+
+.metar-raw, .taf-raw {
+  background-color: var(--color-bg3);
+  padding: 8px;
+  border-radius: 4px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.9em;
+  margin: 8px 0;
+  word-break: break-all;
+}
+
+.metar-details, .taf-details {
+  margin-top: 8px;
+}
+
+/* Forecast Styles */
+.forecast-card {
+  border-left: 4px solid #4CAF50;
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.forecast-day {
+  background-color: var(--color-bg3);
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.forecast-date {
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-bottom: 4px;
+}
+
+.forecast-icon {
+  width: 40px;
+  height: 40px;
+  margin: 4px 0;
+}
+
+.forecast-temps {
+  margin: 4px 0;
+}
+
+.forecast-temps .high {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.forecast-temps .low {
+  color: var(--color-text2);
+}
+
+.forecast-desc {
+  font-size: 0.8em;
+  color: var(--color-text2);
+  margin: 4px 0;
+  text-transform: capitalize;
+}
+
+.forecast-wind {
+  font-size: 0.8em;
+  color: var(--color-text2);
+}
