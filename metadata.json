@@ -1,0 +1,5 @@
+{
+  "name": "Mission Planner",
+  "description": "An interactive mission planner UI to create and visualize operations with customizable waypoints on a map.",
+  "requestFramePermissions": []
+}

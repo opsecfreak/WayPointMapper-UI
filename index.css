@@ -1,0 +1,345 @@
+/**
+ * This CSS file provides all the global styling for the application.
+ * It includes:
+ * - Basic resets and box-sizing.
+ * - Font imports and global font settings.
+ * - CSS variables for theming (light/dark mode colors, accents, etc.).
+ * - Scrollbar styling.
+ * - Layout styles for the main application structure (gdm-map-app, sidebar, map container).
+ * - Styling for UI components like toolbars, buttons, forms, and waypoint lists.
+ * - Responsive design adjustments for smaller screens.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  display: flex;
+  font-family: 'Google Sans Text', 'Google Sans';
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+
+  --color-bg: light-dark(#fff, #000);
+  --color-text: light-dark(#000, #fff);
+
+  --color-accent: light-dark(#1a73e8, #8ab4f8);
+  --color-accent-text: light-dark(#fff, #202124);
+  --color-accent-hover: light-dark(#185abc, #99c2ff);
+
+  --color-sidebar-border: light-dark(#ddd, #333);
+  --color-bg2: light-dark(#f1f3f4, #292a2d);
+  --color-text2: light-dark(#3c4043, #e8eaed);
+  --color-bg3: light-dark(#e8eaed, #3c4043);
+
+  --color-error-bg: #d93025;
+  --color-error-text: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: light-dark(rgba(170, 170, 170, 0.7), rgba(130, 130, 130, 0.7));
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.hidden {
+  display: none !important;
+}
+
+#root,
+.gdm-map-app {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Default layout: Wide screens (map left, sidebar right) */
+.gdm-map-app {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+}
+
+.main-container {
+  display: flex;
+  flex: 1;
+  height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 25%;
+  min-width: 300px;
+  max-width: 350px;
+  height: 100vh;
+  overflow: hidden;
+  border-left: 1px solid var(--color-sidebar-border);
+  flex-shrink: 0;
+  background-color: var(--color-bg);
+}
+
+.sidebar h2, .sidebar h3 {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-sidebar-border);
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.toolbar {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  background-color: var(--color-bg);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 1px solid var(--color-sidebar-border);
+}
+
+.toolbar button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  transition: background-color 0.2s;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.toolbar button:hover {
+  background-color: var(--color-bg2);
+}
+
+.toolbar button.active {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.toolbar .divider {
+  width: 1px;
+  background-color: var(--color-sidebar-border);
+  margin: 4px 6px;
+}
+
+#mapContainer {
+  flex-grow: 1;
+  height: 100%;
+  width: 100%;
+  background-color: #e0e0e0;
+}
+
+.map-error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Sidebar Styles */
+.waypoint-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.empty-list-message {
+  padding: 16px;
+  color: var(--color-text2);
+  font-style: italic;
+  text-align: center;
+}
+
+.waypoint-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  border: 2px solid transparent;
+  transition: background-color 0.2s;
+}
+
+.waypoint-item:hover {
+  background-color: var(--color-bg2);
+}
+
+.waypoint-item.selected {
+  background-color: var(--color-bg3);
+  border-color: var(--color-accent);
+}
+
+.waypoint-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.waypoint-label {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waypoint-editor {
+  padding: 16px;
+  border-top: 1px solid var(--color-sidebar-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  background-color: var(--color-bg2);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--color-text2);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-sidebar-border);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 1em;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: 2px solid var(--color-accent);
+  border-color: transparent;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-sidebar-border);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--color-accent);
+}
+
+.delete-button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.delete-button:hover {
+  opacity: 0.85;
+}
+
+
+/* Narrow screen layout: Map top, Sidebar bottom */
+@media only screen and (max-width : 900px) {
+  .gdm-map-app {
+    flex-direction: column;
+  }
+
+  .main-container {
+    flex: 1;
+    height: 50vh; /* Adjust as needed */
+  }
+
+  .sidebar {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    height: 50vh; /* Adjust as needed */
+    border-left: none;
+    border-top: 1px solid var(--color-sidebar-border);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .waypoint-editor {
+    max-height: 50%;
+  }
+}
