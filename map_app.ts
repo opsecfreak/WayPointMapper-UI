@@ -1444,23 +1444,9 @@ export class MapApp extends LitElement {
 
     let totalDistance = 0;
     for (let i = 0; i < waypoints.length - 1; i++) {
-      totalDistance += this.calculateDistance(waypoints[i], waypoints[i + 1]);
+      totalDistance += calculateDistance(waypoints[i], waypoints[i + 1]);
     }
     return totalDistance;
-  }
-
-  /**
-   * Calculates distance between two waypoints in meters
-   */
-  private calculateDistance(point1: {lat: number, lng: number}, point2: {lat: number, lng: number}): number {
-    const R = 6371000; // Earth's radius in meters
-    const dLat = (point2.lat - point1.lat) * Math.PI / 180;
-    const dLng = (point2.lng - point1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) * 
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
   }
 
   /**
@@ -1533,7 +1519,7 @@ export class MapApp extends LitElement {
     const actualSpeed = nextWaypoint.speed * this.simulationState.speedMultiplier;
     const distanceStep = actualSpeed * deltaTime; // meters per frame
     
-    const segmentDistance = this.calculateDistance(currentWaypoint, nextWaypoint);
+    const segmentDistance = calculateDistance(currentWaypoint, nextWaypoint);
     const progressStep = distanceStep / segmentDistance;
     
     // Update progress

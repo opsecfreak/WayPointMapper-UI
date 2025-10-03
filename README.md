@@ -125,9 +125,17 @@ This mission planner is designed with professional UAV operations in mind, provi
 
 ### Phase 4: Mission Execution Prep
 1. **Save Mission**: Export mission file for your flight controller
-2. **Backup Copy**: Save additional copies for records and safety
-3. **Final Weather Check**: Verify conditions haven't changed
-4. **Regulatory Compliance**: Ensure mission meets local UAV regulations
+2. **Test with Simulation**: Use simulation mode to verify flight path
+3. **Backup Copy**: Save additional copies for records and safety
+4. **Final Weather Check**: Verify conditions haven't changed
+5. **Regulatory Compliance**: Ensure mission meets local UAV regulations
+
+### Phase 5: Mission Simulation *(New)*
+1. **Enter Simulation Mode**: Switch to the Simulation tab
+2. **Review Flight Parameters**: Check telemetry display and controls
+3. **Run Test Flight**: Execute simulated mission to verify waypoint sequence
+4. **Adjust Parameters**: Fine-tune timing and waypoint placement
+5. **Weather Simulation**: Test flight behavior under different weather conditions
 
 ## 🎯 Professional Use Cases
 
@@ -154,6 +162,13 @@ This mission planner is designed with professional UAV operations in mind, provi
 - Plan overlapping routes for multiple aircraft coordination
 - Set appropriate altitudes for optimal visibility
 - Save search patterns for rapid deployment in emergencies
+
+### **Mission Rehearsal & Training**
+- Use simulation mode to rehearse complex missions before flight
+- Train new pilots on mission procedures with visual feedback
+- Test different speed settings and weather scenarios
+- Validate waypoint sequences and flight path logic
+- Practice emergency procedures and route adjustments
 
 ## ⚙️ Settings & Configuration
 
