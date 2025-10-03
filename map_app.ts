@@ -129,7 +129,7 @@ const analyzeFlightConditions = (weather: WeatherData): DetailedWeatherCondition
     else if (windSpeed < 18) conditions.windCondition = 'strong';
     else conditions.windCondition = 'severe';
 
-    if (windSpeed > 15) {
+    if (windSpeed > WEATHER_THRESHOLDS.WIND_WARNING) {
       conditions.warnings.push('High wind speeds may affect UAV stability and control');
       conditions.flightSuitability = 'poor';
     } else if (windSpeed > 10) {
@@ -1215,14 +1215,14 @@ export class MapApp extends LitElement {
         },
         groundStation: 'QGroundControl',
         mission: {
-          cruiseSpeed: 15,
+          cruiseSpeed: DEFAULT_WAYPOINT_VALUES.speed,
           firmwareType: 12,
           hoverSpeed: 5,
           items: [
             // Home position
             {
               AMSLAltAboveTerrain: null,
-              Altitude: waypoints.find(wp => wp.isHome)?.altitude || 100,
+              Altitude: waypoints.find(wp => wp.isHome)?.altitude || DEFAULT_WAYPOINT_VALUES.altitude,
               AltitudeMode: 1,
               autoContinue: true,
               command: 22, // MAV_CMD_NAV_TAKEOFF
