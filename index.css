@@ -618,6 +618,65 @@ body {
 }
 
 /* Settings Tab Styles */
+.api-configuration {
+  background-color: var(--color-bg2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.api-configuration h4 {
+  margin: 0 0 12px 0;
+  font-size: 1em;
+  color: var(--color-text);
+}
+
+.api-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.api-config-section .form-group {
+  margin-bottom: 0;
+}
+
+.api-config-section .form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.api-config-section .form-group input {
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.9em;
+}
+
+.api-config-section .form-group small {
+  color: var(--color-text2);
+  font-size: 0.8em;
+  margin-top: 4px;
+  display: block;
+}
+
+.api-config-section .form-group small a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.api-config-section .form-group small a:hover {
+  text-decoration: underline;
+}
+
+.save-keys-button {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+  margin-top: 8px;
+}
+
+.save-keys-button:hover {
+  background-color: var(--color-accent-hover);
+}
+
 .mission-stats {
   background-color: var(--color-bg2);
   border-radius: 8px;

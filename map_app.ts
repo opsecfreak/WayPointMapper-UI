@@ -25,6 +25,18 @@ import {html, LitElement, PropertyValueMap, nothing} from 'lit';
 import {customElement, query, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 import {styleMap} from 'lit/directives/style-map.js';
+import jsPDF from 'jspdf';
+import tokml from 'tokml';
+
+// MTS UAV Division Branding Constants
+const COMPANY_INFO = {
+  name: 'MTS UAV Division',
+  website: 'MobileTechSpecialists.com',
+  uavSite: 'adkuav.com',
+  tagline: 'Professional UAV Mission Planning Solutions',
+  phone: 'Contact via MobileTechSpecialists.com',
+  email: 'info@mobiletechspecialists.com'
+};
 
 const WAYPOINT_COLORS = {
   red: '#EA4335',
@@ -50,16 +62,32 @@ export interface Waypoint {
 
 interface WeatherData {
   temp: number;
+  tempF: number; // Fahrenheit temperature
   description: string;
   icon: string;
   city: string;
   wind?: {
     speed: number;
     deg: number;
+    gust?: number;
   };
   visibility?: number;
   humidity?: number;
   pressure?: number;
+  clouds?: number;
+  uvi?: number; // UV Index
+  dewPoint?: number;
+  feelsLike?: number;
+  feelsLikeF?: number;
+}
+
+interface DetailedWeatherConditions {
+  flightSuitability: 'excellent' | 'good' | 'marginal' | 'poor' | 'no-fly';
+  windCondition: 'calm' | 'light' | 'moderate' | 'strong' | 'severe';
+  visibilityCondition: 'excellent' | 'good' | 'reduced' | 'poor';
+  temperatureCondition: 'optimal' | 'acceptable' | 'cold' | 'hot';
+  recommendations: string[];
+  warnings: string[];
 }
 
 interface MissionData {
@@ -99,6 +127,81 @@ const getWeatherApiKey = (): string | null => {
          localStorage.getItem(WEATHER_API_KEY_STORAGE_KEY);
 };
 
+// Utility Functions for Weather Analysis
+const celsiusToFahrenheit = (celsius: number): number => {
+  return (celsius * 9/5) + 32;
+};
+
+const analyzeFlightConditions = (weather: WeatherData): DetailedWeatherConditions => {
+  const conditions: DetailedWeatherConditions = {
+    flightSuitability: 'excellent',
+    windCondition: 'calm',
+    visibilityCondition: 'excellent',
+    temperatureCondition: 'optimal',
+    recommendations: [],
+    warnings: []
+  };
+
+  // Wind analysis
+  if (weather.wind) {
+    const windSpeed = weather.wind.speed;
+    if (windSpeed < 3) conditions.windCondition = 'calm';
+    else if (windSpeed < 7) conditions.windCondition = 'light';
+    else if (windSpeed < 12) conditions.windCondition = 'moderate';
+    else if (windSpeed < 18) conditions.windCondition = 'strong';
+    else conditions.windCondition = 'severe';
+
+    if (windSpeed > 15) {
+      conditions.warnings.push('High wind speeds may affect UAV stability and control');
+      conditions.flightSuitability = 'poor';
+    } else if (windSpeed > 10) {
+      conditions.warnings.push('Moderate winds - exercise caution during flight operations');
+      if (conditions.flightSuitability === 'excellent') conditions.flightSuitability = 'marginal';
+    }
+
+    if (weather.wind.gust && weather.wind.gust > windSpeed + 5) {
+      conditions.warnings.push('Wind gusts detected - consider postponing flight');
+    }
+  }
+
+  // Visibility analysis
+  if (weather.visibility) {
+    const visibilityKm = weather.visibility / 1000;
+    if (visibilityKm > 10) conditions.visibilityCondition = 'excellent';
+    else if (visibilityKm > 5) conditions.visibilityCondition = 'good';
+    else if (visibilityKm > 1) conditions.visibilityCondition = 'reduced';
+    else conditions.visibilityCondition = 'poor';
+
+    if (visibilityKm < 3) {
+      conditions.warnings.push('Reduced visibility - maintain visual contact with aircraft');
+      if (conditions.flightSuitability === 'excellent') conditions.flightSuitability = 'marginal';
+    }
+  }
+
+  // Temperature analysis
+  const tempF = weather.tempF;
+  if (tempF < 32) {
+    conditions.temperatureCondition = 'cold';
+    conditions.warnings.push('Freezing temperatures - monitor battery performance');
+    conditions.recommendations.push('Warm batteries before flight and monitor charge levels');
+  } else if (tempF > 95) {
+    conditions.temperatureCondition = 'hot';
+    conditions.warnings.push('High temperatures may affect equipment performance');
+    conditions.recommendations.push('Keep equipment cool and monitor for overheating');
+  } else if (tempF < 50 || tempF > 85) {
+    conditions.temperatureCondition = 'acceptable';
+  }
+
+  // Overall recommendations
+  if (conditions.windCondition === 'calm' && conditions.visibilityCondition === 'excellent') {
+    conditions.recommendations.push('Excellent conditions for all UAV operations');
+  } else if (conditions.windCondition === 'light' && conditions.visibilityCondition === 'good') {
+    conditions.recommendations.push('Good conditions for most UAV operations');
+  }
+
+  return conditions;
+};
+
 /**
  * MapApp component for a mission planner with Google Maps.
  */
@@ -110,17 +213,22 @@ export class MapApp extends LitElement {
   @query('#weather-api-key-input')
   private weatherApiKeyInputElement?: HTMLInputElement;
   @query('#search-box') private searchBoxElement?: HTMLInputElement;
+  @query('#settings-google-api-key')
+  private settingsGoogleApiKeyElement?: HTMLInputElement;
+  @query('#settings-weather-api-key')
+  private settingsWeatherApiKeyElement?: HTMLInputElement;
 
   @state() private showApiKeyModal = true;
   @state() private mapInitialized = false;
   @state() private apiKeyError = '';
   @state() private waypoints = new Map<string, Waypoint>();
   @state() private selectedWaypointId: string | null = null;
-  @state() private mapMode: 'pan' | 'add_waypoint' = 'pan';
+  @state() private mapMode: 'pan' | 'add_waypoint' = 'add_waypoint'; // Default to add mode
   @state() private weather: WeatherData | null = null;
   @state() private activeTab: 'waypoints' | 'weather' | 'settings' = 'waypoints';
   @state() private missionWeather: WeatherData | null = null;
   @state() private currentMission: MissionData | null = null;
+  @state() private autoAddWaypoints = true; // New state for automatic waypoint adding
 
   private map?: google.maps.Map;
   private geocoder?: google.maps.Geocoder;
@@ -236,23 +344,36 @@ export class MapApp extends LitElement {
       this.weather = null;
       return;
     }
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
+    
     try {
+      // Enhanced weather API call with more detailed data
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Weather data fetch failed');
+      
       const data = await response.json();
+      const tempC = data.main.temp;
+      const feelsLikeC = data.main.feels_like;
+      
       this.weather = {
-        temp: data.main.temp,
+        temp: tempC,
+        tempF: celsiusToFahrenheit(tempC),
         description: data.weather[0].description,
         icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`,
         city: data.name,
         wind: data.wind ? {
           speed: data.wind.speed,
-          deg: data.wind.deg
+          deg: data.wind.deg,
+          gust: data.wind.gust
         } : undefined,
         visibility: data.visibility,
         humidity: data.main.humidity,
         pressure: data.main.pressure,
+        clouds: data.clouds?.all,
+        dewPoint: data.main.temp - ((100 - data.main.humidity) / 5), // Approximation
+        feelsLike: feelsLikeC,
+        feelsLikeF: celsiusToFahrenheit(feelsLikeC),
+        uvi: 0 // Will be updated with UV data if available
       };
     } catch (error) {
       console.error('Failed to fetch weather:', error);
@@ -267,28 +388,39 @@ export class MapApp extends LitElement {
       return;
     }
 
-    // Calculate center of mission area
-    const waypointArray = Array.from(this.waypoints.values());
-    const centerLat = waypointArray.reduce((sum, wp) => sum + wp.lat, 0) / waypointArray.length;
-    const centerLng = waypointArray.reduce((sum, wp) => sum + wp.lng, 0) / waypointArray.length;
-
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${centerLat}&lon=${centerLng}&appid=${apiKey}&units=metric`;
     try {
+      // Calculate center of mission area
+      const waypointArray = Array.from(this.waypoints.values());
+      const centerLat = waypointArray.reduce((sum, wp) => sum + wp.lat, 0) / waypointArray.length;
+      const centerLng = waypointArray.reduce((sum, wp) => sum + wp.lng, 0) / waypointArray.length;
+
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${centerLat}&lon=${centerLng}&appid=${apiKey}&units=metric`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Mission weather data fetch failed');
+      
       const data = await response.json();
+      const tempC = data.main.temp;
+      const feelsLikeC = data.main.feels_like;
+      
       this.missionWeather = {
-        temp: data.main.temp,
+        temp: tempC,
+        tempF: celsiusToFahrenheit(tempC),
         description: data.weather[0].description,
         icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`,
         city: data.name,
         wind: data.wind ? {
           speed: data.wind.speed,
-          deg: data.wind.deg
+          deg: data.wind.deg,
+          gust: data.wind.gust
         } : undefined,
         visibility: data.visibility,
         humidity: data.main.humidity,
         pressure: data.main.pressure,
+        clouds: data.clouds?.all,
+        dewPoint: data.main.temp - ((100 - data.main.humidity) / 5), // Approximation
+        feelsLike: feelsLikeC,
+        feelsLikeF: celsiusToFahrenheit(feelsLikeC),
+        uvi: 0 // Will be updated with UV data if available
       };
     } catch (error) {
       console.error('Failed to fetch mission weather:', error);
@@ -447,6 +579,43 @@ export class MapApp extends LitElement {
 
   private handleApiKeyInput() {
     if (this.apiKeyError) this.apiKeyError = '';
+  }
+
+  private handleSettingsApiKeyInput() {
+    // Clear any existing errors when user starts typing
+    this.apiKeyError = '';
+  }
+
+  private saveApiKeysFromSettings() {
+    const googleApiKey = this.settingsGoogleApiKeyElement?.value;
+    const weatherApiKey = this.settingsWeatherApiKeyElement?.value;
+
+    if (googleApiKey) {
+      localStorage.setItem(GOOGLE_MAPS_API_KEY_STORAGE_KEY, googleApiKey);
+      
+      // If this is a new or different key, reload the map
+      const currentKey = getGoogleMapsApiKey();
+      if (currentKey !== googleApiKey) {
+        this.mapInitialized = false;
+        this.loadMap(googleApiKey);
+      }
+    }
+
+    if (weatherApiKey) {
+      localStorage.setItem(WEATHER_API_KEY_STORAGE_KEY, weatherApiKey);
+    } else {
+      localStorage.removeItem(WEATHER_API_KEY_STORAGE_KEY);
+    }
+
+    // Refresh weather data with potentially new key
+    this.fetchMissionWeather();
+    this.debouncedFetchWeather();
+
+    // Force re-render to update the UI
+    this.requestUpdate();
+    
+    // Show confirmation
+    alert('API keys saved successfully!');
   }
 
   private handleMapClick(event: google.maps.MapMouseEvent) {
@@ -822,10 +991,61 @@ export class MapApp extends LitElement {
 
   private renderSettingsTab() {
     const metadata = this.waypoints.size > 0 ? this.calculateMissionMetadata() : null;
+    const currentGoogleKey = getGoogleMapsApiKey();
+    const currentWeatherKey = getWeatherApiKey();
+    const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
+    const envWeatherKey = getEnvironmentVariable('VITE_WEATHER_API_KEY');
     
     return html`
       <div class="settings-tab" role="tabpanel">
         <h3>Mission Settings</h3>
+        
+        <!-- API Configuration Section -->
+        <div class="api-configuration">
+          <h4>API Configuration</h4>
+          <div class="api-config-section">
+            <div class="form-group">
+              <label for="settings-google-api-key">Google Maps API Key</label>
+              ${envGoogleKey ? html`
+                <div class="env-notice">✓ Using environment variable</div>
+              ` : html`
+                <input
+                  type="password"
+                  id="settings-google-api-key"
+                  placeholder="Enter Google Maps API key"
+                  .value=${currentGoogleKey || ''}
+                  @input=${this.handleSettingsApiKeyInput} />
+                <small>Required for map functionality. <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank">Get a key</a></small>
+              `}
+            </div>
+            
+            <div class="form-group">
+              <label for="settings-weather-api-key">OpenWeather API Key</label>
+              ${envWeatherKey ? html`
+                <div class="env-notice">✓ Using environment variable</div>
+              ` : html`
+                <input
+                  type="password"
+                  id="settings-weather-api-key"
+                  placeholder="Enter OpenWeather API key"
+                  .value=${currentWeatherKey || ''}
+                  @input=${this.handleSettingsApiKeyInput} />
+                <small>Optional for weather data. <a href="https://openweathermap.org/appid" target="_blank">Get a key</a></small>
+              `}
+            </div>
+            
+            ${!envGoogleKey || !envWeatherKey ? html`
+              <button 
+                class="control-button save-keys-button" 
+                @click=${this.saveApiKeysFromSettings}>
+                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                  <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/>
+                </svg>
+                Save API Keys
+              </button>
+            ` : ''}
+          </div>
+        </div>
         
         ${metadata ? html`
           <div class="mission-stats">

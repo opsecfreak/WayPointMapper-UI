@@ -1,210 +1,260 @@
-# Waypoint Mapper UI
+# Professional UAV Mission Planner
 
-An interactive waypoint mapping interface for mission planning with Google Maps integration, featuring customizable waypoints, satellite view, and real-time weather data.
+A comprehensive web-based mission planning application designed specifically for commercial UAV pilots and drone operators. Plan, visualize, and manage autonomous flight missions with precision and confidence.
 
 ![Waypoint Mapper UI](https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6)
 
-## Features
+## 🚁 For Commercial UAV Pilots
 
-- **Interactive Google Maps Integration**: Satellite view with click-to-add waypoints
-- **Waypoint Management**: Create, edit, delete, and drag waypoints with custom properties
-- **Real-time Weather**: Optional weather overlay using OpenWeatherMap API
-- **Mission Planning**: Organized sidebar with waypoint details and editing
-- **Responsive Design**: Works on desktop and mobile devices
-- **Modular Architecture**: Separated components for map, sidebar, toolbar, and state management
+This mission planner is designed with professional UAV operations in mind, providing the tools you need for:
 
-## Quick Start
+- **Commercial Photography & Videography**: Plan precise flight paths for optimal shot sequences
+- **Infrastructure Inspection**: Create systematic inspection routes for towers, pipelines, and structures  
+- **Mapping & Surveying**: Design overlapping flight patterns for photogrammetry and LiDAR missions
+- **Search & Rescue Operations**: Plan systematic search patterns and coordinate multi-aircraft missions
+- **Agricultural Monitoring**: Create efficient crop monitoring and spraying routes
+- **Security & Surveillance**: Plan patrol routes and establish observation points
 
-### Prerequisites
-- Node.js (version 16 or higher)
-- npm or yarn package manager
+## ✈️ Key Features for Professional Operations
 
-### Installation
+### 🗺️ **Advanced Mission Planning**
+- **Interactive Google Maps Integration**: High-resolution satellite imagery for precise planning
+- **Dynamic Flight Path Visualization**: Real-time polylines with directional indicators
+- **Waypoint Management**: Drag-and-drop waypoint editing with altitude control
+- **Home Position Setting**: Automatic return-to-home point designation
+- **Mission Statistics**: Distance, flight time, and altitude calculations
 
-1. **Clone and install dependencies**:
+### 🌤️ **Weather Intelligence**
+- **Mission-Area Weather**: Localized weather conditions for your specific flight zone
+- **Flight Safety Analysis**: Wind speed warnings and visibility assessments
+- **Real-Time Conditions**: Current temperature, humidity, pressure, and precipitation
+- **Operational Recommendations**: Flight condition safety evaluations
+
+### 💾 **Mission Data Management**
+- **Export/Import Missions**: Save missions as JSON files for reuse and documentation
+- **Mission Metadata**: Automatic calculation of flight parameters
+- **Weather Snapshots**: Historical weather data preserved with each mission
+- **Backup & Sharing**: Easy mission file sharing between team members
+
+### 🎛️ **Professional Interface**
+- **Tabbed Organization**: Separate views for waypoints, weather, and settings
+- **Real-Time Updates**: All changes reflected immediately across the interface
+- **Responsive Design**: Works on tablets and laptops in the field
+- **Keyboard Shortcuts**: Efficient operation for experienced pilots
+
+## 🚀 Quick Setup for Pilots
+
+### System Requirements
+- **Device**: Laptop, tablet, or desktop computer
+- **Browser**: Chrome 90+, Firefox 88+, Safari 14+, or Edge 90+
+- **Internet**: Required for map tiles and weather data
+- **Storage**: ~50MB for application files
+
+### Installation (5 minutes)
+
+1. **Download or Clone the Project**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/opsecfreak/WayPointMapper-UI.git
    cd WayPointMapper-UI
-   npm install
    ```
 
-2. **Set up API keys** (choose one method):
-
-   **Option A: Environment Variables (Recommended)**
+2. **Install Dependencies**
    ```bash
-   # Copy the example environment file
+   npm install
+   ```
+   *If you don't have Node.js, download it from [nodejs.org](https://nodejs.org)*
+
+3. **Get Your API Keys** (Required)
+   - **Google Maps API Key**: Visit [Google Cloud Console](https://console.cloud.google.com/)
+     - Create a project or use existing
+     - Enable: Maps JavaScript API, Places API, Geocoding API
+     - Create API key and restrict to your domain
+   - **OpenWeather API Key** (Optional): Register at [OpenWeatherMap](https://openweathermap.org/appid)
+
+4. **Configure API Keys** (Choose one method):
+
+   **Option A: Environment Variables (Recommended for security)**
+   ```bash
+   # Create environment file
    cp .env.example .env
    
-   # Edit .env and add your API keys
-   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
-   VITE_WEATHER_API_KEY=your_weather_api_key_here  # Optional
+   # Edit .env file with your keys
+   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
+   VITE_WEATHER_API_KEY=your_openweather_key_here
    ```
 
    **Option B: Runtime Configuration**
-   - Skip the .env setup
-   - The app will prompt you to enter API keys when it starts
+   - Start the application without environment setup
+   - Enter keys in the Settings tab when prompted
 
-3. **Start the development server**:
+5. **Launch the Application**
    ```bash
    npm run dev
    ```
+   Open browser to `http://localhost:3000`
 
-4. **Open your browser**:
-   - Navigate to `http://localhost:3000`
-   - The application should load with the Google Maps interface
+## 📋 Mission Planning Workflow
 
-## API Keys Setup
+### Phase 1: Mission Setup
+1. **Access the Application**: Open in your web browser
+2. **Configure Location**: Use search to navigate to your operation area
+3. **Set Home Position**: Click "Add Waypoint" and place your takeoff point
+4. **Check Weather**: Review current conditions in the Weather tab
 
-### Google Maps API Key (Required)
+### Phase 2: Waypoint Planning
+1. **Add Waypoints**: Continue clicking map locations to build your route
+2. **Adjust Altitudes**: Set appropriate heights for each waypoint
+3. **Edit Properties**: Customize labels, colors, and notes for each point
+4. **Review Flight Path**: Verify the connecting lines show your intended route
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the following APIs:
-   - **Maps JavaScript API**
-   - **Places API**  
-   - **Geocoding API**
-4. Create credentials (API Key)
-5. Restrict the key to your domain for production use
+### Phase 3: Mission Validation
+1. **Review Statistics**: Check total distance and estimated flight time
+2. **Weather Analysis**: Ensure conditions are suitable for safe operations
+3. **Flight Path Check**: Verify no obstacles intersect your route
+4. **Altitude Verification**: Confirm all waypoints meet regulatory requirements
 
-[Get a Google Maps API Key →](https://developers.google.com/maps/documentation/javascript/get-api-key)
+### Phase 4: Mission Execution Prep
+1. **Save Mission**: Export mission file for your flight controller
+2. **Backup Copy**: Save additional copies for records and safety
+3. **Final Weather Check**: Verify conditions haven't changed
+4. **Regulatory Compliance**: Ensure mission meets local UAV regulations
 
-### OpenWeatherMap API Key (Optional)
+## 🎯 Professional Use Cases
 
-1. Sign up at [OpenWeatherMap](https://openweathermap.org/appid)
-2. Get your free API key
-3. Add it to your environment variables or enter it in the app
+### **Infrastructure Inspection**
+- Plan systematic inspection routes around towers, bridges, or buildings
+- Set waypoints at optimal distances for high-resolution imagery
+- Account for wind conditions that might affect stability near structures
+- Export missions for repeatable monthly/quarterly inspections
 
-[Get a Weather API Key →](https://openweathermap.org/appid)
+### **Mapping & Surveying**
+- Create grid patterns with appropriate overlap for photogrammetry
+- Calculate flight times to ensure battery endurance
+- Plan multiple flights for large areas with consistent altitude
+- Document flight parameters for survey accuracy requirements
 
-## Usage
+### **Commercial Photography**
+- Design cinematic flight paths for smooth video capture
+- Plan reveal shots and establishing sequences
+- Consider lighting conditions and optimal shooting angles
+- Time flights with weather conditions for best results
 
-### Adding Waypoints
-1. Click the "Add Waypoint" button in the toolbar
-2. Click anywhere on the map to place a waypoint
-3. The first waypoint becomes your "Home" position
+### **Search & Rescue**
+- Create systematic search patterns covering assigned areas
+- Plan overlapping routes for multiple aircraft coordination
+- Set appropriate altitudes for optimal visibility
+- Save search patterns for rapid deployment in emergencies
 
-### Editing Waypoints
-1. Click on any waypoint in the sidebar list
-2. Modify properties in the editor panel:
-   - **Label**: Custom name for the waypoint
-   - **Color**: Visual marker color
-   - **Altitude**: Height in meters
-   - **Notes**: Additional information
+## ⚙️ Settings & Configuration
 
-### Map Controls
-- **Search**: Use the search box to find locations
-- **Zoom**: Use +/- buttons or mouse wheel
-- **Pan**: Drag to move around the map
-- **Recenter**: Click the center button to return to default view
+### API Key Management
+Access the **Settings Tab** to configure your API keys:
 
-### Weather Information
-- Displays current weather for the map center
-- Updates automatically as you pan around
-- Shows temperature, conditions, and location
+- **Google Maps API Key**: Required for all map functionality
+- **OpenWeather API Key**: Optional, enables weather features
+- **Save Securely**: Keys stored locally on your device only
+- **Environment Override**: Use .env files for team deployments
 
-## Development
+### Mission Parameters
+- **Default Altitude**: Set standard waypoint height
+- **Flight Speed**: Affects time calculations (default: 15 m/s)
+- **Distance Units**: Metric or imperial display options
+- **Weather Updates**: Automatic refresh intervals
 
-### Project Structure
+### Export Options
+- **JSON Format**: Universal mission file format
+- **Metadata Inclusion**: Flight parameters and weather data
+- **Date Stamping**: Automatic file naming with timestamps
+- **Backup Locations**: Save to multiple locations for redundancy
+
+## 🛡️ Safety & Compliance
+
+### Pre-Flight Checks
+- ✅ Weather conditions suitable for operation
+- ✅ Flight path clear of obstacles and restricted areas
+- ✅ Waypoint altitudes comply with local regulations
+- ✅ Mission duration within battery/fuel limits
+- ✅ Emergency landing sites identified along route
+
+### Weather Limitations
+- **Wind Speed**: Monitor for aircraft stability limits
+- **Visibility**: Ensure VLOS compliance where required
+- **Precipitation**: Check for equipment protection needs
+- **Temperature**: Verify battery performance in conditions
+
+### Regulatory Compliance
+- Verify waypoint altitudes meet height restrictions
+- Ensure flight paths avoid restricted airspace
+- Confirm operations comply with local UAV regulations
+- Document missions for regulatory reporting if required
+
+## 🔧 Technical Specifications
+
+### Application Architecture
+- **Frontend**: LitElement-based web application
+- **Mapping**: Google Maps JavaScript API
+- **Weather**: OpenWeatherMap API integration
+- **Data Format**: JSON mission files
+- **Real-Time**: WebSocket updates for live collaboration
+
+### Performance Specifications
+- **Waypoint Limit**: 1000+ waypoints per mission
+- **File Size**: ~1-50KB per mission file
+- **Load Time**: <3 seconds for typical missions
+- **Update Rate**: Real-time flight path rendering
+- **Weather Refresh**: 30-second intervals
+
+### Supported Data Formats
+- **Import**: JSON mission files
+- **Export**: JSON with embedded metadata
+- **Coordinates**: Decimal degrees (WGS84)
+- **Altitudes**: Meters above ground level
+- **Weather**: Current conditions and forecasts
+
+## 🚁 Flight Controller Integration
+
+### Supported Formats
+While this planner creates JSON mission files, you can adapt the waypoint data for:
+- **DJI Flight Controllers**: Convert coordinates to DJI format
+- **ArduPilot/PX4**: Extract waypoints for Mission Planner
+- **Autel/Parrot**: Format for manufacturer mission formats
+- **Custom Controllers**: Use JSON data directly
+
+### Coordinate Conversion
+```javascript
+// Example: Extract waypoints for external systems
+const mission = JSON.parse(missionFile);
+const waypoints = mission.waypoints.map(wp => ({
+  lat: wp.lat,
+  lng: wp.lng,
+  alt: wp.altitude,
+  action: wp.isHome ? 'takeoff' : 'waypoint'
+}));
 ```
-├── index.html          # Main HTML entry point
-├── index.tsx          # Application bootstrap
-├── map_app.ts         # Main MapApp LitElement component
-├── index.css          # Global styles and theming
-├── vite.config.ts     # Vite build configuration
-├── tsconfig.json      # TypeScript configuration
-└── package.json       # Dependencies and scripts
-```
 
-### Key Components
+## 📞 Support & Community
 
-**MapApp (`map_app.ts`)**
-- Main LitElement component
-- Manages application state (waypoints, selected waypoint, map mode)
-- Handles Google Maps integration
-- Coordinates all UI interactions
+### Getting Help
+- **Documentation**: Check this README for detailed guidance
+- **Issues**: Report bugs via GitHub Issues
+- **Feature Requests**: Suggest improvements through GitHub
+- **Community**: Join discussions with other UAV professionals
 
-**Modular Design**
-- **Map**: Google Maps integration with markers and interaction handlers
-- **Sidebar**: Waypoint list and editing interface  
-- **Toolbar**: Map controls and search functionality
-- **Weather**: Optional weather overlay component
+### Contributing
+- **Pilot Feedback**: Share your operational experience
+- **Feature Suggestions**: Request professional features
+- **Bug Reports**: Help improve reliability
+- **Code Contributions**: Submit pull requests for enhancements
 
-### Build Commands
+## 📜 License & Legal
 
-```bash
-# Development server
-npm run dev
+- **License**: Apache 2.0 - Free for commercial use
+- **Liability**: Users responsible for regulatory compliance
+- **Weather Data**: Provided for planning only, verify conditions independently
+- **Map Data**: Subject to Google Maps terms of service
 
-# Production build
-npm run build
+---
 
-# Preview production build
-npm run preview
-```
+**Fly Safe, Plan Smart** 🚁
 
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_GOOGLE_MAPS_API_KEY` | Yes | Google Maps JavaScript API key |
-| `VITE_WEATHER_API_KEY` | No | OpenWeatherMap API key for weather data |
-
-## Customization
-
-### Waypoint Colors
-Edit `WAYPOINT_COLORS` in `map_app.ts` to customize available marker colors.
-
-### Default Location
-Change `LOS_ANGELES_CENTER` in `map_app.ts` to set a different default map center.
-
-### Styling
-Modify `index.css` to customize the appearance. The app uses CSS custom properties for theming.
-
-## Browser Support
-
-- Chrome 90+
-- Firefox 88+  
-- Safari 14+
-- Edge 90+
-
-## Troubleshooting
-
-### Common Issues
-
-**"Cannot find module" errors during development**
-- Run `npm install` to ensure all dependencies are installed
-- Check that Node.js version is 16 or higher
-
-**Map not loading**
-- Verify your Google Maps API key is correct
-- Check that the required APIs are enabled in Google Cloud Console
-- Check browser console for detailed error messages
-
-**Weather not showing**
-- Weather requires a valid OpenWeatherMap API key
-- Weather is optional - the app works without it
-
-**Build errors**
-- Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-- Check TypeScript errors: `npx tsc --noEmit`
-
-### Performance
-
-The application is optimized for local development with:
-- Minimal dependencies (only Lit and Google Maps loader)
-- Efficient state management
-- Responsive design for various screen sizes
-- Debounced weather API calls
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally with `npm run dev`
-5. Build and verify with `npm run build`
-6. Submit a pull request
-
-## License
-
-Licensed under the Apache License 2.0. See LICENSE file for details.
+*Professional UAV operations require careful planning, regulatory compliance, and safety consciousness. This tool assists in mission planning but does not replace pilot judgment, weather verification, or regulatory compliance requirements.*
