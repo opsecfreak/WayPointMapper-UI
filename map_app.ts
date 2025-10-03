@@ -53,6 +53,26 @@ interface WeatherData {
   description: string;
   icon: string;
   city: string;
+  wind?: {
+    speed: number;
+    deg: number;
+  };
+  visibility?: number;
+  humidity?: number;
+  pressure?: number;
+}
+
+interface MissionData {
+  id: string;
+  name: string;
+  waypoints: Waypoint[];
+  createdAt: string;
+  weather?: WeatherData;
+  metadata: {
+    totalDistance: number;
+    estimatedFlightTime: number;
+    maxAltitude: number;
+  };
 }
 
 const GOOGLE_MAPS_API_KEY_STORAGE_KEY = 'googleMapsApiKey';
@@ -98,10 +118,14 @@ export class MapApp extends LitElement {
   @state() private selectedWaypointId: string | null = null;
   @state() private mapMode: 'pan' | 'add_waypoint' = 'pan';
   @state() private weather: WeatherData | null = null;
+  @state() private activeTab: 'waypoints' | 'weather' | 'settings' = 'waypoints';
+  @state() private missionWeather: WeatherData | null = null;
+  @state() private currentMission: MissionData | null = null;
 
   private map?: google.maps.Map;
   private geocoder?: google.maps.Geocoder;
   private mapMarkers = new Map<string, google.maps.marker.AdvancedMarkerElement>();
+  private flightPath?: google.maps.Polyline;
   private weatherFetchTimeout: number | undefined;
 
   createRenderRoot() {
@@ -222,11 +246,176 @@ export class MapApp extends LitElement {
         description: data.weather[0].description,
         icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`,
         city: data.name,
+        wind: data.wind ? {
+          speed: data.wind.speed,
+          deg: data.wind.deg
+        } : undefined,
+        visibility: data.visibility,
+        humidity: data.main.humidity,
+        pressure: data.main.pressure,
       };
     } catch (error) {
       console.error('Failed to fetch weather:', error);
       this.weather = null; // Clear weather on error
     }
+  }
+
+  private async fetchMissionWeather() {
+    const apiKey = getWeatherApiKey();
+    if (!apiKey || this.waypoints.size === 0) {
+      this.missionWeather = null;
+      return;
+    }
+
+    // Calculate center of mission area
+    const waypointArray = Array.from(this.waypoints.values());
+    const centerLat = waypointArray.reduce((sum, wp) => sum + wp.lat, 0) / waypointArray.length;
+    const centerLng = waypointArray.reduce((sum, wp) => sum + wp.lng, 0) / waypointArray.length;
+
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${centerLat}&lon=${centerLng}&appid=${apiKey}&units=metric`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Mission weather data fetch failed');
+      const data = await response.json();
+      this.missionWeather = {
+        temp: data.main.temp,
+        description: data.weather[0].description,
+        icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`,
+        city: data.name,
+        wind: data.wind ? {
+          speed: data.wind.speed,
+          deg: data.wind.deg
+        } : undefined,
+        visibility: data.visibility,
+        humidity: data.main.humidity,
+        pressure: data.main.pressure,
+      };
+    } catch (error) {
+      console.error('Failed to fetch mission weather:', error);
+      this.missionWeather = null;
+    }
+  }
+
+  private calculateMissionMetadata(): { totalDistance: number; estimatedFlightTime: number; maxAltitude: number } {
+    const waypoints = Array.from(this.waypoints.values()).sort((a, b) => {
+      if (a.isHome && !b.isHome) return -1;
+      if (!a.isHome && b.isHome) return 1;
+      return a.label.localeCompare(b.label);
+    });
+
+    let totalDistance = 0;
+    let maxAltitude = 0;
+
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const wp1 = waypoints[i];
+      const wp2 = waypoints[i + 1];
+      
+      // Calculate distance using Haversine formula (approximate)
+      const R = 6371e3; // Earth's radius in meters
+      const φ1 = wp1.lat * Math.PI/180;
+      const φ2 = wp2.lat * Math.PI/180;
+      const Δφ = (wp2.lat-wp1.lat) * Math.PI/180;
+      const Δλ = (wp2.lng-wp1.lng) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      totalDistance += R * c;
+      maxAltitude = Math.max(maxAltitude, wp1.altitude, wp2.altitude);
+    }
+
+    // Estimate flight time (assuming 15 m/s average speed)
+    const estimatedFlightTime = totalDistance / 15;
+
+    return {
+      totalDistance: Math.round(totalDistance),
+      estimatedFlightTime: Math.round(estimatedFlightTime),
+      maxAltitude
+    };
+  }
+
+  private saveMission() {
+    if (this.waypoints.size === 0) {
+      alert('No waypoints to save. Please add some waypoints first.');
+      return;
+    }
+
+    const metadata = this.calculateMissionMetadata();
+    const mission: MissionData = {
+      id: crypto.randomUUID(),
+      name: `Mission ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+      waypoints: Array.from(this.waypoints.values()),
+      createdAt: new Date().toISOString(),
+      weather: this.missionWeather || undefined,
+      metadata
+    };
+
+    // Save to file
+    const dataStr = JSON.stringify(mission, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `mission_${new Date().toISOString().slice(0,10)}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+
+    this.currentMission = mission;
+  }
+
+  private async loadMission() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const mission: MissionData = JSON.parse(text);
+        
+        // Clear existing waypoints
+        this.waypoints.clear();
+        this.mapMarkers.forEach(marker => marker.map = null);
+        this.mapMarkers.clear();
+        
+        // Load waypoints from mission
+        const waypointMap = new Map<string, Waypoint>();
+        mission.waypoints.forEach(wp => {
+          waypointMap.set(wp.id, wp);
+          this.createMapMarker(wp);
+        });
+        
+        this.waypoints = waypointMap;
+        this.currentMission = mission;
+        this.missionWeather = mission.weather || null;
+        this.selectedWaypointId = null;
+        
+        // Update flight path
+        this.updateFlightPath();
+        
+        // Center map on mission
+        if (mission.waypoints.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          mission.waypoints.forEach(wp => {
+            bounds.extend(new google.maps.LatLng(wp.lat, wp.lng));
+          });
+          this.map?.fitBounds(bounds);
+        }
+        
+        alert(`Mission "${mission.name}" loaded successfully!`);
+      } catch (error) {
+        console.error('Error loading mission:', error);
+        alert('Error loading mission file. Please check the file format.');
+      }
+    };
+    
+    input.click();
   }
 
   private handleApiKeySave() {
@@ -284,9 +473,57 @@ export class MapApp extends LitElement {
     newWaypoints.set(id, newWaypoint);
     this.waypoints = newWaypoints;
     this.createMapMarker(newWaypoint);
+    this.updateFlightPath();
+    this.fetchMissionWeather();
     this.selectedWaypointId = id;
     if (isHome) this.mapMode = 'add_waypoint';
     else this.mapMode = 'pan'; // Revert to pan after adding non-home waypoints
+  }
+
+  private updateFlightPath() {
+    if (!this.map) return;
+
+    // Remove existing flight path
+    if (this.flightPath) {
+      this.flightPath.setMap(null);
+    }
+
+    // Create new flight path if we have waypoints
+    const waypointArray = Array.from(this.waypoints.values()).sort((a, b) => {
+      // Sort with home first, then by creation order
+      if (a.isHome && !b.isHome) return -1;
+      if (!a.isHome && b.isHome) return 1;
+      return a.label.localeCompare(b.label);
+    });
+
+    if (waypointArray.length > 1) {
+      const flightPlanCoordinates = waypointArray.map(wp => ({
+        lat: wp.lat,
+        lng: wp.lng
+      }));
+
+      this.flightPath = new google.maps.Polyline({
+        path: flightPlanCoordinates,
+        geodesic: true,
+        strokeColor: '#FF0000',
+        strokeOpacity: 1.0,
+        strokeWeight: 3,
+        icons: [{
+          icon: {
+            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 6,
+            strokeColor: '#FF0000',
+            strokeWeight: 2,
+            fillColor: '#FF0000',
+            fillOpacity: 1,
+          },
+          offset: '50%',
+          repeat: '100px'
+        }]
+      });
+
+      this.flightPath.setMap(this.map);
+    }
   }
 
   private createMapMarker(waypoint: Waypoint) {
@@ -344,6 +581,12 @@ export class MapApp extends LitElement {
         marker.position = {lat: newProps.lat, lng: newProps.lng};
       }
     }
+    
+    // Update flight path when waypoint position changes
+    if (newProps.lat !== undefined || newProps.lng !== undefined) {
+      this.updateFlightPath();
+      this.fetchMissionWeather();
+    }
   }
 
   private deleteWaypoint(id: string) {
@@ -358,6 +601,10 @@ export class MapApp extends LitElement {
     if (this.selectedWaypointId === id) {
       this.selectedWaypointId = null;
     }
+    
+    // Update flight path after deletion
+    this.updateFlightPath();
+    this.fetchMissionWeather();
   }
 
   private renderToolbar() {
@@ -410,16 +657,64 @@ export class MapApp extends LitElement {
   }
 
   private renderSidebar() {
-    const selectedWaypoint = this.selectedWaypointId
-      ? this.waypoints.get(this.selectedWaypointId)
-      : null;
-
     return html`
       <div
         class="sidebar"
         role="complementary"
         aria-labelledby="sidebar-heading">
-        <h2 id="sidebar-heading">Mission Plan</h2>
+        
+        <!-- Tab Navigation -->
+        <div class="tab-navigation" role="tablist">
+          <button
+            class=${classMap({ 'tab-button': true, 'active': this.activeTab === 'waypoints' })}
+            role="tab"
+            @click=${() => this.activeTab = 'waypoints'}
+            aria-selected=${this.activeTab === 'waypoints'}>
+            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+              <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q324-80 222-211T120-480q0-104 102-231t258-231q156 104 258 231t102 231q0 135-102 266T480-80Z"/>
+            </svg>
+            Waypoints
+          </button>
+          <button
+            class=${classMap({ 'tab-button': true, 'active': this.activeTab === 'weather' })}
+            role="tab"
+            @click=${() => this.activeTab = 'weather'}
+            aria-selected=${this.activeTab === 'weather'}>
+            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+              <path d="M280-120q-91 0-155.5-64.5T60-340q0-83 55-148t136-78q32-57 87.5-95.5T480-700q90 0 156.5 57.5T717-500q69 6 116 57t47 122q0 75-52.5 128T700-140H280Z"/>
+            </svg>
+            Weather
+          </button>
+          <button
+            class=${classMap({ 'tab-button': true, 'active': this.activeTab === 'settings' })}
+            role="tab"
+            @click=${() => this.activeTab = 'settings'}
+            aria-selected=${this.activeTab === 'settings'}>
+            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+              <path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-15.5t1-15.5L78-562l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 15.5t-1 15.5l103 78-110 190-119-50q-11 8-23 15t-24 12L590-80H370Z"/>
+            </svg>
+            Settings
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+          ${this.activeTab === 'waypoints' ? this.renderWaypointsTab() : ''}
+          ${this.activeTab === 'weather' ? this.renderWeatherTab() : ''}
+          ${this.activeTab === 'settings' ? this.renderSettingsTab() : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderWaypointsTab() {
+    const selectedWaypoint = this.selectedWaypointId
+      ? this.waypoints.get(this.selectedWaypointId)
+      : null;
+
+    return html`
+      <div class="waypoints-tab" role="tabpanel">
+        <h3>Mission Waypoints</h3>
         <div class="waypoint-list" role="list">
           ${[...this.waypoints.values()].map(
             (waypoint) => html`
@@ -458,6 +753,131 @@ export class MapApp extends LitElement {
             : nothing}
         </div>
         ${selectedWaypoint ? this.renderWaypointEditor(selectedWaypoint) : ''}
+      </div>
+    `;
+  }
+
+  private renderWeatherTab() {
+    const metadata = this.waypoints.size > 0 ? this.calculateMissionMetadata() : null;
+    
+    return html`
+      <div class="weather-tab" role="tabpanel">
+        <h3>Mission Weather</h3>
+        ${this.missionWeather ? html`
+          <div class="weather-card">
+            <div class="weather-header">
+              <img src=${this.missionWeather.icon} alt="Weather icon" />
+              <div class="weather-main">
+                <div class="weather-temp">${Math.round(this.missionWeather.temp)}°C</div>
+                <div class="weather-desc">${this.missionWeather.description}</div>
+                <div class="weather-city">${this.missionWeather.city}</div>
+              </div>
+            </div>
+            
+            <div class="weather-details">
+              ${this.missionWeather.wind ? html`
+                <div class="weather-item">
+                  <strong>Wind:</strong> ${this.missionWeather.wind.speed} m/s 
+                  (${this.missionWeather.wind.deg}°)
+                </div>
+              ` : ''}
+              ${this.missionWeather.visibility ? html`
+                <div class="weather-item">
+                  <strong>Visibility:</strong> ${(this.missionWeather.visibility / 1000).toFixed(1)} km
+                </div>
+              ` : ''}
+              <div class="weather-item">
+                <strong>Humidity:</strong> ${this.missionWeather.humidity}%
+              </div>
+              <div class="weather-item">
+                <strong>Pressure:</strong> ${this.missionWeather.pressure} hPa
+              </div>
+            </div>
+            
+            ${metadata ? html`
+              <div class="flight-conditions">
+                <h4>Flight Conditions Analysis</h4>
+                <div class="condition-item">
+                  <strong>Wind Impact:</strong> ${this.missionWeather.wind && this.missionWeather.wind.speed > 10 ? 
+                    'High wind speeds may affect flight stability' : 'Wind conditions suitable for flight'}
+                </div>
+                <div class="condition-item">
+                  <strong>Visibility:</strong> ${this.missionWeather.visibility && this.missionWeather.visibility < 5000 ?
+                    'Reduced visibility - exercise caution' : 'Good visibility for flight operations'}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        ` : html`
+          <div class="no-weather">
+            ${this.waypoints.size === 0 ? 
+              'Add waypoints to see mission weather data.' :
+              'Weather data not available. Check your API key or internet connection.'
+            }
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  private renderSettingsTab() {
+    const metadata = this.waypoints.size > 0 ? this.calculateMissionMetadata() : null;
+    
+    return html`
+      <div class="settings-tab" role="tabpanel">
+        <h3>Mission Settings</h3>
+        
+        ${metadata ? html`
+          <div class="mission-stats">
+            <h4>Mission Statistics</h4>
+            <div class="stat-item">
+              <strong>Total Distance:</strong> ${(metadata.totalDistance / 1000).toFixed(2)} km
+            </div>
+            <div class="stat-item">
+              <strong>Estimated Flight Time:</strong> ${Math.floor(metadata.estimatedFlightTime / 60)}m ${Math.round(metadata.estimatedFlightTime % 60)}s
+            </div>
+            <div class="stat-item">
+              <strong>Max Altitude:</strong> ${metadata.maxAltitude} m
+            </div>
+            <div class="stat-item">
+              <strong>Waypoints:</strong> ${this.waypoints.size}
+            </div>
+          </div>
+        ` : ''}
+        
+        <div class="mission-controls">
+          <h4>Mission Management</h4>
+          <div class="control-buttons">
+            <button 
+              class="control-button save-button" 
+              @click=${this.saveMission}
+              ?disabled=${this.waypoints.size === 0}>
+              <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                <path d="M840-680v480q0 33-23.5 56.5T760-120H200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h480l160 160ZM760-647L647-760H200v560h560v-447ZM480-240q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM240-560h360v-160H240v160Zm-40-87v447-560 113Z"/>
+              </svg>
+              Save Mission
+            </button>
+            
+            <button 
+              class="control-button load-button" 
+              @click=${this.loadMission}>
+              <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
+              </svg>
+              Load Mission
+            </button>
+          </div>
+        </div>
+
+        ${this.currentMission ? html`
+          <div class="current-mission">
+            <h4>Current Mission</h4>
+            <div class="mission-info">
+              <div><strong>Name:</strong> ${this.currentMission.name}</div>
+              <div><strong>Created:</strong> ${new Date(this.currentMission.createdAt).toLocaleString()}</div>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }
