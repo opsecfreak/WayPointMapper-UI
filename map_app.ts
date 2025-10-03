@@ -23,12 +23,6 @@ import {customElement, query, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 import {styleMap} from 'lit/directives/style-map.js';
 
-// Google Maps API Key is loaded from environment variables.
-// This key is essential for loading and using Google Maps services.
-// Ensure this key is configured with access to the "Maps JavaScript API",
-// "Geocoding API", and the "Directions API".
-const USER_PROVIDED_GOOGLE_MAPS_API_KEY = process.env.API_KEY;
-
 const WAYPOINT_COLORS = {
   red: '#EA4335',
   blue: '#4285F4',
@@ -50,13 +44,17 @@ export interface Waypoint {
   color: WaypointColor;
 }
 
+const API_KEY_STORAGE_KEY = 'googleMapsApiKey';
+
 /**
  * MapApp component for Photorealistic 3D Maps Mission Planner.
  */
 @customElement('gdm-map-app')
 export class MapApp extends LitElement {
   @query('#mapContainer') mapContainerElement?: HTMLElement;
+  @query('#api-key-input') apiKeyInputElement?: HTMLInputElement;
 
+  @state() isApiKeyMissing = true;
   @state() mapInitialized = false;
   @state() mapError = '';
   @state() waypoints = new Map<string, Waypoint>();
@@ -76,22 +74,23 @@ export class MapApp extends LitElement {
   protected firstUpdated(
     _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>,
   ): void {
-    this.loadMap();
+    const savedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedApiKey) {
+      this.isApiKeyMissing = false;
+      this.loadMap(savedApiKey);
+    }
   }
 
-  async loadMap() {
-    if (
-      !USER_PROVIDED_GOOGLE_MAPS_API_KEY ||
-      USER_PROVIDED_GOOGLE_MAPS_API_KEY === ''
-    ) {
-      this.mapError = `Google Maps API Key is not configured. Please ensure the API_KEY environment variable is set.`;
+  async loadMap(apiKey: string) {
+    if (!apiKey || apiKey === '') {
+      this.mapError = `Google Maps API Key is not configured. Please provide a valid API key.`;
+      this.isApiKeyMissing = true;
       console.error(this.mapError);
-      // FIX: The `requestUpdate` call was removed because updating the `@state` decorated `mapError` property already triggers a re-render.
       return;
     }
 
     const loader = new Loader({
-      apiKey: USER_PROVIDED_GOOGLE_MAPS_API_KEY,
+      apiKey: apiKey,
       version: 'beta',
       libraries: ['geocoding', 'routes', 'geometry'],
     });
@@ -110,10 +109,12 @@ export class MapApp extends LitElement {
     } catch (error) {
       console.error('Error loading Google Maps API:', error);
       this.mapError =
-        'Could not load Google Maps. Check console and API key.';
+        'The provided API key appears to be invalid or expired. Please verify your key in the Google Cloud Console, ensure the Maps JavaScript API is enabled, and try again.';
       this.mapInitialized = false;
+      // If loading fails, show the API key modal again
+      this.isApiKeyMissing = true;
+      localStorage.removeItem(API_KEY_STORAGE_KEY);
     }
-    // FIX: The `requestUpdate` call was removed because updates to `@state` decorated properties (`mapInitialized`, `mapError`) inside the try/catch block already trigger a re-render.
   }
 
   initializeMap() {
@@ -124,6 +125,24 @@ export class MapApp extends LitElement {
     );
     if ((window as any).google && (window as any).google.maps) {
       this.geocoder = new (window as any).google.maps.Geocoder();
+    }
+  }
+
+  private handleApiKeySave() {
+    const apiKey = this.apiKeyInputElement?.value;
+    if (apiKey) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+      this.isApiKeyMissing = false;
+      this.mapError = ''; // Clear previous errors
+      this.loadMap(apiKey);
+    } else {
+      this.mapError = 'Please enter a valid API key.';
+    }
+  }
+
+  private handleApiKeyInput() {
+    if (this.mapError) {
+      this.mapError = '';
     }
   }
 
@@ -145,7 +164,6 @@ export class MapApp extends LitElement {
       color: 'red',
     };
 
-    // FIX: Used an immutable update pattern by creating a new Map. This automatically triggers a re-render in Lit.
     const newWaypoints = new Map(this.waypoints);
     newWaypoints.set(id, newWaypoint);
     this.waypoints = newWaypoints;
@@ -180,7 +198,6 @@ export class MapApp extends LitElement {
     if (!waypoint) return;
 
     const updatedWaypoint = {...waypoint, ...newProps};
-    // FIX: Used an immutable update pattern by creating a new Map. This automatically triggers a re-render in Lit.
     const newWaypoints = new Map(this.waypoints);
     newWaypoints.set(id, updatedWaypoint);
     this.waypoints = newWaypoints;
@@ -200,7 +217,6 @@ export class MapApp extends LitElement {
   }
 
   private deleteWaypoint(id: string) {
-    // FIX: Used an immutable update pattern by creating a new Map. This automatically triggers a re-render in Lit.
     const newWaypoints = new Map(this.waypoints);
     newWaypoints.delete(id);
     this.waypoints = newWaypoints;
@@ -300,7 +316,7 @@ export class MapApp extends LitElement {
                   style=${styleMap({
                     backgroundColor: WAYPOINT_COLORS[waypoint.color],
                   })}></span>
-                <span class="waypoint-label">${waypoint.label}</span>
+                <span class.waypoint-label">${waypoint.label}</span>
               </div>
             `,
           )}
@@ -383,7 +399,40 @@ export class MapApp extends LitElement {
     `;
   }
 
+  private renderApiKeyModal() {
+    return html`
+      <div class="api-key-modal-backdrop">
+        <div class="api-key-modal" role="dialog" aria-labelledby="api-key-heading">
+          <h2 id="api-key-heading">Google Maps API Key Required</h2>
+          <p>
+            To use the Mission Planner, please provide a Google Maps API key.
+            The key must have the "Maps JavaScript API" enabled.
+          </p>
+          <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener">
+            Get an API Key
+          </a>
+          <div class="form-group">
+            <label for="api-key-input">Your API Key</label>
+            <input type="text" id="api-key-input" placeholder="Enter your key here" @input=${this.handleApiKeyInput} />
+          </div>
+          ${
+            this.mapError && this.isApiKeyMissing
+              ? html`<div class="api-key-error" role="alert">${this.mapError}</div>`
+              : ''
+          }
+          <button class="save-api-key-button" @click=${this.handleApiKeySave}>
+            Save and Load Map
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
+    if (this.isApiKeyMissing) {
+      return this.renderApiKeyModal();
+    }
+
     const initialCenter = '34.0522,-118.2437,100'; // Los Angeles
     const initialRange = '20000';
     const initialTilt = '45';
