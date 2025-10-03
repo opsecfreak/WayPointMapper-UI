@@ -506,7 +506,7 @@ export class MapApp extends LitElement {
     autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace();
       if (!place.geometry || !place.geometry.location) {
-        window.alert("No details available for input: '" + place.name + "'");
+        showUserNotification("No details available for input: '" + place.name + "'", 'warning');
         return;
       }
       if (place.geometry.viewport) {
@@ -747,7 +747,7 @@ export class MapApp extends LitElement {
 
   private saveMission() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to save. Please add some waypoints first.');
+      showUserNotification('No waypoints to save. Please add some waypoints first.', 'warning');
       return;
     }
 
@@ -820,10 +820,10 @@ export class MapApp extends LitElement {
           this.map?.fitBounds(bounds);
         }
         
-        alert(`Mission "${mission.name}" loaded successfully!`);
+        showUserNotification(`Mission "${mission.name}" loaded successfully!`, 'success');
       } catch (error) {
         console.error('Error loading mission:', error);
-        alert('Error loading mission file. Please check the file format.');
+        showUserNotification('Error loading mission file. Please check the file format.', 'error');
       }
     };
     
@@ -855,7 +855,7 @@ export class MapApp extends LitElement {
    */
   private async generatePDFBriefing() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to include in briefing. Please add waypoints first.');
+      showUserNotification('No waypoints to include in briefing. Please add waypoints first.', 'warning');
       return;
     }
 
@@ -1046,7 +1046,7 @@ export class MapApp extends LitElement {
       
     } catch (error) {
       console.error('Error generating PDF briefing:', error);
-      alert('Error generating PDF briefing. Please try again.');
+      showUserNotification('Error generating PDF briefing. Please try again.', 'error');
     }
   }
 
@@ -1055,7 +1055,7 @@ export class MapApp extends LitElement {
    */
   private exportKML() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to export. Please add waypoints first.');
+      showUserNotification('No waypoints to export. Please add waypoints first.', 'warning');
       return;
     }
 
@@ -1113,7 +1113,7 @@ export class MapApp extends LitElement {
       
     } catch (error) {
       console.error('Error exporting KML:', error);
-      alert('Error exporting KML file. Please try again.');
+      showUserNotification('Error exporting KML file. Please try again.', 'error');
     }
   }
 
@@ -1122,7 +1122,7 @@ export class MapApp extends LitElement {
    */
   private exportCSV() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to export. Please add waypoints first.');
+      showUserNotification('No waypoints to export. Please add waypoints first.', 'warning');
       return;
     }
 
@@ -1145,7 +1145,7 @@ export class MapApp extends LitElement {
       
     } catch (error) {
       console.error('Error exporting CSV:', error);
-      alert('Error exporting CSV file. Please try again.');
+      showUserNotification('Error exporting CSV file. Please try again.', 'error');
     }
   }
 
@@ -1277,7 +1277,7 @@ export class MapApp extends LitElement {
           plannedHomePosition: [
             waypoints.find(wp => wp.isHome)?.lat || 0,
             waypoints.find(wp => wp.isHome)?.lng || 0,
-            waypoints.find(wp => wp.isHome)?.altitude || 100
+            waypoints.find(wp => wp.isHome)?.altitude || DEFAULT_WAYPOINT_VALUES.altitude
           ],
           vehicleType: 2,
           version: 2
@@ -1289,17 +1289,15 @@ export class MapApp extends LitElement {
         version: 1
       };
 
-      const blob = new Blob([JSON.stringify(mavlinkPlan, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `mission_${new Date().toISOString().slice(0,10)}.plan`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const filename = `mission_${new Date().toISOString().slice(0,10)}.plan`;
+      downloadFile(
+        JSON.stringify(mavlinkPlan, null, 2),
+        filename,
+        'application/json'
+      );
       
     } catch (error) {
-      console.error('Error exporting Mavlink Plan:', error);
-      alert('Error exporting Mavlink Plan file. Please try again.');
+      handleError(error, 'Mavlink Plan Export');
     }
   }
 
