@@ -52,6 +52,26 @@ import type {
   WeatherEffect
 } from './schema.js';
 
+// Import utility functions for error handling and performance
+import {
+  ApplicationError,
+  handleError,
+  showUserNotification,
+  validateWaypoint,
+  validateMission,
+  apiRequest,
+  downloadFile,
+  readFileAsText,
+  debounce,
+  throttle,
+  storage,
+  calculateDistance,
+  calculateBearing,
+  formatDuration,
+  formatDistance,
+  clamp
+} from './utils.js';
+
 // MTS UAV Division Branding Constants
 const COMPANY_INFO = {
   name: 'MTS UAV Division',
@@ -268,7 +288,7 @@ const parseTAF = (taf: string): TAFData | null => {
     // Basic parsing - in production you'd want more sophisticated TAF parsing
     const forecast = [{
       time: from,
-      wind: { direction: 260, speed: 10 },
+      wind: { deg: 260, speed: 10 },
       visibility: 6,
       clouds: [{ coverage: 'FEW', base: 3000 }]
     }];
@@ -519,10 +539,8 @@ export class MapApp extends LitElement {
     try {
       // Enhanced weather API call with more detailed data
       const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Weather data fetch failed');
+      const data = await apiRequest<any>(url, {}, 'Weather Data Fetch');
       
-      const data = await response.json();
       const tempC = data.main.temp;
       const feelsLikeC = data.main.feels_like;
       
@@ -546,8 +564,10 @@ export class MapApp extends LitElement {
         feelsLikeF: celsiusToFahrenheit(feelsLikeC),
         uvi: 0 // Will be updated with UV data if available
       };
+      
+      showUserNotification(`Weather updated for ${data.name}`, 'success', 2000);
     } catch (error) {
-      console.error('Failed to fetch weather:', error);
+      handleError(error, 'Weather Fetch');
       this.weather = null; // Clear weather on error
     }
   }
@@ -566,10 +586,8 @@ export class MapApp extends LitElement {
       const centerLng = waypointArray.reduce((sum, wp) => sum + wp.lng, 0) / waypointArray.length;
 
       const url = `https://api.openweathermap.org/data/2.5/weather?lat=${centerLat}&lon=${centerLng}&appid=${apiKey}&units=metric`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Mission weather data fetch failed');
+      const data = await apiRequest<any>(url, {}, 'Mission Weather Fetch');
       
-      const data = await response.json();
       const tempC = data.main.temp;
       const feelsLikeC = data.main.feels_like;
       
@@ -593,8 +611,10 @@ export class MapApp extends LitElement {
         feelsLikeF: celsiusToFahrenheit(feelsLikeC),
         uvi: 0 // Will be updated with UV data if available
       };
+      
+      showUserNotification('Mission weather updated', 'success', 2000);
     } catch (error) {
-      console.error('Failed to fetch mission weather:', error);
+      handleError(error, 'Mission Weather Fetch');
       this.missionWeather = null;
     }
   }
@@ -1134,7 +1154,7 @@ export class MapApp extends LitElement {
    */
   private exportGeoJSON() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to export. Please add waypoints first.');
+      showUserNotification('No waypoints to export. Please add waypoints first.', 'warning');
       return;
     }
 
@@ -1178,17 +1198,15 @@ export class MapApp extends LitElement {
         ]
       };
 
-      const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `mission_${new Date().toISOString().slice(0,10)}.geojson`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const filename = `mission_${new Date().toISOString().slice(0,10)}.geojson`;
+      downloadFile(
+        JSON.stringify(geojson, null, 2),
+        filename,
+        'application/geo+json'
+      );
       
     } catch (error) {
-      console.error('Error exporting GeoJSON:', error);
-      alert('Error exporting GeoJSON file. Please try again.');
+      handleError(error, 'GeoJSON Export');
     }
   }
 
@@ -2027,33 +2045,42 @@ export class MapApp extends LitElement {
   }
 
   private addWaypoint(lat: number, lng: number) {
-    const id = crypto.randomUUID();
-    const isHome = this.waypoints.size === 0;
+    try {
+      const id = crypto.randomUUID();
+      const isHome = this.waypoints.size === 0;
 
-    const newWaypoint: Waypoint = {
-      id,
-      lat,
-      lng,
-      altitude: 100,
-      speed: 15, // Default cruise speed in m/s
-      label: isHome ? 'Home' : `Waypoint ${this.waypoints.size + 1}`,
-      notes: '',
-      color: isHome ? 'blue' : 'red',
-      isHome,
-    };
+      const newWaypoint: Waypoint = {
+        id,
+        lat,
+        lng,
+        altitude: DEFAULT_WAYPOINT_VALUES.altitude,
+        speed: DEFAULT_WAYPOINT_VALUES.speed,
+        label: isHome ? 'Home' : `Waypoint ${this.waypoints.size + 1}`,
+        notes: '',
+        color: isHome ? 'blue' : 'red',
+        isHome,
+      };
 
-    const newWaypoints = new Map(this.waypoints);
-    newWaypoints.set(id, newWaypoint);
-    this.waypoints = newWaypoints;
-    this.createMapMarker(newWaypoint);
-    this.updateFlightPath();
-    this.fetchMissionWeather();
-    this.fetchMETAR();
-    this.fetchTAF();
-    this.fetchForecast();
-    this.selectedWaypointId = id;
-    if (isHome) this.mapMode = 'add_waypoint';
-    else this.mapMode = 'pan'; // Revert to pan after adding non-home waypoints
+      // Validate the new waypoint
+      validateWaypoint(newWaypoint);
+
+      const newWaypoints = new Map(this.waypoints);
+      newWaypoints.set(id, newWaypoint);
+      this.waypoints = newWaypoints;
+      this.createMapMarker(newWaypoint);
+      this.updateFlightPath();
+      this.fetchMissionWeather();
+      this.fetchMETAR();
+      this.fetchTAF();
+      this.fetchForecast();
+      this.selectedWaypointId = id;
+      if (isHome) this.mapMode = 'add_waypoint';
+      else this.mapMode = 'pan'; // Revert to pan after adding non-home waypoints
+      
+      showUserNotification(`${isHome ? 'Home' : 'Waypoint'} added successfully`, 'success', 2000);
+    } catch (error) {
+      handleError(error, 'Add Waypoint');
+    }
   }
 
   private updateFlightPath() {
