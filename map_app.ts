@@ -53,6 +53,7 @@ export interface Waypoint {
   lat: number;
   lng: number;
   altitude: number;
+  speed: number; // Speed in m/s
   label: string;
   notes: string;
   color: WaypointColor;
@@ -99,6 +100,68 @@ interface MissionData {
     totalDistance: number;
     estimatedFlightTime: number;
     maxAltitude: number;
+  };
+}
+
+interface METARData {
+  raw: string;
+  station: string;
+  time: string;
+  wind: {
+    direction: number;
+    speed: number;
+    gust?: number;
+    variable?: boolean;
+  };
+  visibility: number;
+  weather?: string[];
+  clouds: {
+    coverage: string;
+    base?: number;
+    type?: string;
+  }[];
+  temperature: number;
+  dewpoint: number;
+  altimeter: number;
+  remarks?: string;
+}
+
+interface TAFData {
+  raw: string;
+  station: string;
+  issueTime: string;
+  validPeriod: {
+    from: string;
+    to: string;
+  };
+  forecast: {
+    time: string;
+    wind: {
+      direction: number;
+      speed: number;
+      gust?: number;
+    };
+    visibility: number;
+    weather?: string[];
+    clouds: {
+      coverage: string;
+      base?: number;
+    }[];
+  }[];
+}
+
+interface ForecastData {
+  date: string;
+  temp: {
+    min: number;
+    max: number;
+  };
+  description: string;
+  icon: string;
+  humidity: number;
+  wind: {
+    speed: number;
+    deg: number;
   };
 }
 
@@ -226,8 +289,12 @@ export class MapApp extends LitElement {
   @state() private weather: WeatherData | null = null;
   @state() private activeTab: 'waypoints' | 'weather' | 'settings' = 'waypoints';
   @state() private missionWeather: WeatherData | null = null;
+  @state() private metarData: METARData | null = null;
+  @state() private tafData: TAFData | null = null;
+  @state() private forecastData: ForecastData[] = [];
   @state() private currentMission: MissionData | null = null;
   @state() private autoAddWaypoints = true; // New state for automatic waypoint adding
+  @state() private darkMode = false; // New state for dark mode
 
   private map?: google.maps.Map;
   private geocoder?: google.maps.Geocoder;
@@ -912,6 +979,7 @@ export class MapApp extends LitElement {
       lat,
       lng,
       altitude: 100,
+      speed: 15, // Default cruise speed in m/s
       label: isHome ? 'Home' : `Waypoint ${this.waypoints.size + 1}`,
       notes: '',
       color: isHome ? 'blue' : 'red',
@@ -1190,6 +1258,9 @@ export class MapApp extends LitElement {
                    <span class="waypoint-label">${waypoint.label}</span>
                    <span class="waypoint-coords">
                      ${waypoint.lat.toFixed(6)}, ${waypoint.lng.toFixed(6)}
+                   </span>
+                   <span class="waypoint-meta">
+                     Alt: ${waypoint.altitude}m | Speed: ${waypoint.speed}m/s
                    </span>
                 </div>
               </div>
@@ -1524,6 +1595,20 @@ export class MapApp extends LitElement {
             @input=${(e: InputEvent) =>
               this.updateWaypoint(waypoint.id, {
                 altitude: Number((e.target as HTMLInputElement).value),
+              })} />
+        </div>
+        <div class="form-group">
+          <label for="waypoint-speed">Speed (m/s)</label>
+          <input
+            type="number"
+            id="waypoint-speed"
+            min="1"
+            max="50"
+            step="0.1"
+            .value=${String(waypoint.speed)}
+            @input=${(e: InputEvent) =>
+              this.updateWaypoint(waypoint.id, {
+                speed: Number((e.target as HTMLInputElement).value),
               })} />
         </div>
         <div class="form-group">
