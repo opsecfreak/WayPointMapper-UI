@@ -14,6 +14,7 @@ import {MapApp} from './map_app';
 document.addEventListener('DOMContentLoaded', () => {
   const rootElement = document.querySelector('#root')! as HTMLElement;
   const mapApp = new MapApp();
-  // FIX: Cast mapApp to `any` to resolve a TypeScript error where it's not recognized as a valid Node.
-  rootElement.appendChild(mapApp as any);
+  // FIX: Cast to HTMLElement to resolve "not assignable to type 'Node'" error.
+  // `MapApp` is an HTMLElement, but TypeScript can fail to infer this.
+  rootElement.appendChild(mapApp as HTMLElement);
 });

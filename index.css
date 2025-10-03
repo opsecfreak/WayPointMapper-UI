@@ -122,6 +122,7 @@ body {
 .api-key-modal a {
   color: var(--color-accent);
   text-decoration: none;
+  font-size: 0.8em;
 }
 .api-key-modal a:hover {
   text-decoration: underline;
@@ -129,12 +130,22 @@ body {
 
 .api-key-modal .form-group {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 .api-key-modal .form-group input {
   font-family: 'Inconsolata', monospace;
   font-size: 1.1em;
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-sidebar-border);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  margin-top: 4px;
 }
+
 
 .save-api-key-button {
   padding: 12px;
@@ -214,11 +225,13 @@ body {
   padding: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   border: 1px solid var(--color-sidebar-border);
+  align-items: center;
 }
 
 .toolbar button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   border: none;
   outline: none;
@@ -244,6 +257,72 @@ body {
   width: 1px;
   background-color: var(--color-sidebar-border);
   margin: 4px 6px;
+  align-self: stretch;
+}
+
+.search-box-container {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+}
+
+.search-box-container svg {
+  color: var(--color-text2);
+}
+
+#search-box {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+  padding: 8px;
+  width: 250px;
+}
+
+.map-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.map-controls button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.weather-overlay {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  font-size: 14px;
+}
+
+.weather-overlay img {
+  width: 40px;
+  height: 40px;
+}
+
+.weather-info .weather-temp {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+.weather-info .weather-desc, .weather-info .weather-city {
+  font-size: 0.8em;
+  text-transform: capitalize;
+  opacity: 0.9;
 }
 
 #mapContainer {
@@ -253,18 +332,14 @@ body {
   background-color: #e0e0e0;
 }
 
-.map-error-message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: var(--color-error-bg);
-  color: var(--color-error-text);
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  z-index: 1000;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.marker-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Sidebar Styles */
@@ -309,11 +384,21 @@ body {
   flex-shrink: 0;
 }
 
-.waypoint-label {
+.waypoint-details {
+  display: flex;
+  flex-direction: column;
   flex-grow: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.waypoint-label {
+  font-weight: 500;
+}
+.waypoint-coords {
+  font-size: 0.8em;
+  color: var(--color-text2);
+  font-family: 'Inconsolata', monospace;
 }
 
 .waypoint-editor {
@@ -408,6 +493,11 @@ body {
   .main-container {
     flex: 1;
     height: 50vh; /* Adjust as needed */
+  }
+  
+  .toolbar {
+    flex-wrap: wrap;
+    width: calc(100% - 30px);
   }
 
   .sidebar {
