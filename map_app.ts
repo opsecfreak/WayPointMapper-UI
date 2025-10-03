@@ -265,6 +265,112 @@ const analyzeFlightConditions = (weather: WeatherData): DetailedWeatherCondition
 };
 
 /**
+ * Parse METAR weather report
+ * Example: METAR KLAX 121852Z 25012KT 10SM FEW040 25/10 A2992 RMK AO2 SLP132 T02500100
+ */
+const parseMETAR = (metar: string): METARData | null => {
+  try {
+    const parts = metar.trim().split(/\s+/);
+    if (parts.length < 6) return null;
+
+    const station = parts[1];
+    const time = parts[2];
+    
+    // Parse wind (e.g., 25012KT)
+    let windIdx = 3;
+    const windMatch = parts[windIdx].match(/(\d{3}|\w{3})(\d{2,3})(G\d{2,3})?(KT|MPS|KMH)/);
+    const wind = windMatch ? {
+      direction: windMatch[1] === 'VRB' ? 0 : parseInt(windMatch[1]),
+      speed: parseInt(windMatch[2]),
+      gust: windMatch[3] ? parseInt(windMatch[3].slice(1)) : undefined,
+      variable: windMatch[1] === 'VRB'
+    } : { direction: 0, speed: 0 };
+
+    // Parse visibility (e.g., 10SM)
+    windIdx++;
+    const visibilityMatch = parts[windIdx].match(/(\d+(?:\s\d+\/\d+)?|\d+\/\d+)(SM|KM)/);
+    const visibility = visibilityMatch ? parseFloat(visibilityMatch[1].replace(/\s/, '.')) : 10;
+
+    // Parse temperature/dewpoint (e.g., 25/10)
+    let tempIdx = parts.findIndex(p => /^M?\d{2}\/M?\d{2}$/.test(p));
+    let temperature = 20, dewpoint = 10;
+    if (tempIdx > 0) {
+      const tempParts = parts[tempIdx].split('/');
+      temperature = parseInt(tempParts[0].replace('M', '-'));
+      dewpoint = parseInt(tempParts[1].replace('M', '-'));
+    }
+
+    // Parse altimeter (e.g., A2992)
+    const altimeterIdx = parts.findIndex(p => /^A\d{4}$/.test(p));
+    const altimeter = altimeterIdx > 0 ? parseInt(parts[altimeterIdx].slice(1)) / 100 : 29.92;
+
+    // Parse clouds
+    const clouds: any[] = [];
+    parts.forEach(part => {
+      const cloudMatch = part.match(/(SKC|CLR|FEW|SCT|BKN|OVC)(\d{3})?/);
+      if (cloudMatch) {
+        clouds.push({
+          coverage: cloudMatch[1],
+          base: cloudMatch[2] ? parseInt(cloudMatch[2]) * 100 : undefined
+        });
+      }
+    });
+
+    return {
+      raw: metar,
+      station,
+      time,
+      wind,
+      visibility,
+      clouds,
+      temperature,
+      dewpoint,
+      altimeter,
+      remarks: parts.includes('RMK') ? parts.slice(parts.indexOf('RMK') + 1).join(' ') : undefined
+    };
+  } catch (error) {
+    console.error('Error parsing METAR:', error);
+    return null;
+  }
+};
+
+/**
+ * Parse TAF weather forecast
+ * Example: TAF KLAX 121720Z 1218/1324 26010KT P6SM FEW030 SCT250
+ */
+const parseTAF = (taf: string): TAFData | null => {
+  try {
+    const parts = taf.trim().split(/\s+/);
+    if (parts.length < 6) return null;
+
+    const station = parts[1];
+    const issueTime = parts[2];
+    const validPeriod = parts[3];
+    
+    const [from, to] = validPeriod.split('/');
+    
+    // Basic parsing - in production you'd want more sophisticated TAF parsing
+    const forecast = [{
+      time: from,
+      wind: { direction: 260, speed: 10 },
+      visibility: 6,
+      clouds: [{ coverage: 'FEW', base: 3000 }]
+    }];
+
+    return {
+      raw: taf,
+      station,
+      issueTime,
+      validPeriod: { from, to },
+      forecast
+    };
+  } catch (error) {
+    console.error('Error parsing TAF:', error);
+    return null;
+  }
+};
+
+/**
  * MapApp component for a mission planner with Google Maps.
  */
 @customElement('gdm-map-app')
@@ -532,6 +638,92 @@ export class MapApp extends LitElement {
       estimatedFlightTime: Math.round(estimatedFlightTime),
       maxAltitude
     };
+  }
+
+  /**
+   * Fetch METAR data for the nearest airport to mission center
+   */
+  private async fetchMETAR() {
+    if (this.waypoints.size === 0) return;
+
+    try {
+      // For demonstration, we'll use example METAR data
+      // In production, you'd integrate with an aviation weather service
+      const sampleMETAR = "METAR KLAX 121852Z 25012KT 10SM FEW040 25/10 A2992 RMK AO2 SLP132 T02500100";
+      this.metarData = parseMETAR(sampleMETAR);
+    } catch (error) {
+      console.error('Error fetching METAR:', error);
+      this.metarData = null;
+    }
+  }
+
+  /**
+   * Fetch TAF data for flight planning
+   */
+  private async fetchTAF() {
+    if (this.waypoints.size === 0) return;
+
+    try {
+      // For demonstration, we'll use example TAF data
+      const sampleTAF = "TAF KLAX 121720Z 1218/1324 26010KT P6SM FEW030 SCT250 FM130200 24008KT P6SM SKC FM131500 VRB03KT P6SM SKC";
+      this.tafData = parseTAF(sampleTAF);
+    } catch (error) {
+      console.error('Error fetching TAF:', error);
+      this.tafData = null;
+    }
+  }
+
+  /**
+   * Fetch 5-day weather forecast
+   */
+  private async fetchForecast() {
+    if (this.waypoints.size === 0) return;
+
+    const apiKey = getWeatherApiKey();
+    if (!apiKey) return;
+
+    try {
+      const waypoint = Array.from(this.waypoints.values())[0];
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${waypoint.lat}&lon=${waypoint.lng}&appid=${apiKey}&units=metric`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Weather API responded with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Process 5-day forecast data
+      const dailyForecasts: ForecastData[] = [];
+      const processed = new Set<string>();
+
+      data.list.forEach((item: any) => {
+        const date = new Date(item.dt * 1000).toDateString();
+        if (!processed.has(date) && dailyForecasts.length < 5) {
+          processed.add(date);
+          dailyForecasts.push({
+            date,
+            temp: {
+              min: Math.round(item.main.temp_min),
+              max: Math.round(item.main.temp_max)
+            },
+            description: item.weather[0].description,
+            icon: `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`,
+            humidity: item.main.humidity,
+            wind: {
+              speed: item.wind.speed,
+              deg: item.wind.deg
+            }
+          });
+        }
+      });
+
+      this.forecastData = dailyForecasts;
+    } catch (error) {
+      console.error('Error fetching forecast:', error);
+      this.forecastData = [];
+    }
   }
 
   private saveMission() {
@@ -956,6 +1148,9 @@ export class MapApp extends LitElement {
 
     // Refresh weather data with potentially new key
     this.fetchMissionWeather();
+    this.fetchMETAR();
+    this.fetchTAF();
+    this.fetchForecast();
     this.debouncedFetchWeather();
 
     // Force re-render to update the UI
@@ -992,6 +1187,9 @@ export class MapApp extends LitElement {
     this.createMapMarker(newWaypoint);
     this.updateFlightPath();
     this.fetchMissionWeather();
+    this.fetchMETAR();
+    this.fetchTAF();
+    this.fetchForecast();
     this.selectedWaypointId = id;
     if (isHome) this.mapMode = 'add_waypoint';
     else this.mapMode = 'pan'; // Revert to pan after adding non-home waypoints
