@@ -748,6 +748,15 @@ body {
   background-color: var(--color-bg);
 }
 
+.export-button {
+  background-color: #34a853;
+  color: white;
+}
+
+.export-button:hover:not(:disabled) {
+  background-color: #2d8f47;
+}
+
 .control-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
