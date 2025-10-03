@@ -1310,7 +1310,7 @@ export class MapApp extends LitElement {
    */
   private startSimulation() {
     if (this.waypoints.size < 2) {
-      alert('Please add at least 2 waypoints to start simulation');
+      showUserNotification('Please add at least 2 waypoints to start simulation', 'warning');
       return;
     }
 
@@ -1521,7 +1521,7 @@ export class MapApp extends LitElement {
     if (currentIndex >= waypoints.length - 1) {
       // Mission complete
       this.stopSimulation();
-      alert('Mission completed!');
+      showUserNotification('Mission completed!', 'success');
       return;
     }
 
@@ -2034,7 +2034,7 @@ export class MapApp extends LitElement {
     this.requestUpdate();
     
     // Show confirmation
-    alert('API keys saved successfully!');
+    showUserNotification('API keys saved successfully!', 'success');
   }
 
   private handleMapClick(event: google.maps.MapMouseEvent) {
