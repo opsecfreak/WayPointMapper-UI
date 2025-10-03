@@ -2361,6 +2361,16 @@ export class MapApp extends LitElement {
             </svg>
             Settings
           </button>
+          <button
+            class=${classMap({ 'tab-button': true, 'active': this.activeTab === 'simulation' })}
+            role="tab"
+            @click=${() => this.activeTab = 'simulation'}
+            aria-selected=${this.activeTab === 'simulation'}>
+            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+              <path d="m216-160 172-172q17-17 17-39t-17-39L216-582q-17-17-39-17t-39 17q-17 17-17 39t17 39l124 124-124 124q-17 17-17 39t17 39q17 17 39 17t39-17Zm264 0q33 0 56.5-23.5T560-240q0-33-23.5-56.5T480-320q-33 0-56.5 23.5T400-240q0 33 23.5 56.5T480-160Zm200 0q33 0 56.5-23.5T760-240q0-33-23.5-56.5T680-320q-33 0-56.5 23.5T600-240q0 33 23.5 56.5T680-160Z"/>
+            </svg>
+            Simulation
+          </button>
         </div>
 
         <!-- Tab Content -->
@@ -2368,6 +2378,7 @@ export class MapApp extends LitElement {
           ${this.activeTab === 'waypoints' ? this.renderWaypointsTab() : ''}
           ${this.activeTab === 'weather' ? this.renderWeatherTab() : ''}
           ${this.activeTab === 'settings' ? this.renderSettingsTab() : ''}
+          ${this.activeTab === 'simulation' ? this.renderSimulationTab() : ''}
         </div>
       </div>
     `;
