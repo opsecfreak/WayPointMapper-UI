@@ -50,6 +50,22 @@ export interface Waypoint {
 }
 
 /**
+ * Search history item for location searches
+ */
+export interface SearchHistoryItem {
+  /** Search query text */
+  query: string;
+  /** Location name from place result */
+  placeName: string;
+  /** Latitude of the location */
+  lat: number;
+  /** Longitude of the location */
+  lng: number;
+  /** Timestamp when search was performed */
+  timestamp: number;
+}
+
+/**
  * Complete mission definition
  */
 export interface Mission {

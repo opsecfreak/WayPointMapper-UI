@@ -49,7 +49,8 @@ import type {
   SimulationState,
   DronePosition,
   SimulationTrail,
-  WeatherEffect
+  WeatherEffect,
+  SearchHistoryItem
 } from './schema.js';
 
 // Import utility functions for error handling and performance
@@ -337,6 +338,9 @@ export class MapApp extends LitElement {
   @state() private currentMission: Mission | null = null;
   @state() private autoAddWaypoints = true; // New state for automatic waypoint adding
   @state() private darkMode = false; // New state for dark mode
+  @state() private searchHistory: SearchHistoryItem[] = [];
+  @state() private showSearchHistory = false;
+  @state() private isSearching = false;
 
   // Simulation Mode State Properties
   @state() private simulationState: SimulationState = {
@@ -400,6 +404,9 @@ export class MapApp extends LitElement {
     const savedDarkMode = localStorage.getItem('darkMode');
     this.darkMode = savedDarkMode === 'true';
     this.updateTheme();
+
+    // Load search history from localStorage
+    this.loadSearchHistory();
 
     // Check for API key from environment variables first, then local storage
     const savedGoogleApiKey = getGoogleMapsApiKey();
@@ -509,13 +516,100 @@ export class MapApp extends LitElement {
         showUserNotification("No details available for input: '" + place.name + "'", 'warning');
         return;
       }
+      
+      // Save to search history
+      this.addToSearchHistory({
+        query: this.searchBoxElement?.value || '',
+        placeName: place.name || place.formatted_address || 'Unknown Location',
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+        timestamp: Date.now()
+      });
+      
       if (place.geometry.viewport) {
         this.map?.fitBounds(place.geometry.viewport);
       } else {
         this.map?.setCenter(place.geometry.location);
         this.map?.setZoom(17);
       }
+      
+      // Hide search history dropdown
+      this.showSearchHistory = false;
     });
+  }
+
+  /**
+   * Load search history from localStorage
+   */
+  private loadSearchHistory(): void {
+    try {
+      const stored = localStorage.getItem('search-history');
+      if (stored) {
+        this.searchHistory = JSON.parse(stored);
+      }
+    } catch (error) {
+      handleError(error, 'Failed to load search history');
+      this.searchHistory = [];
+    }
+  }
+
+  /**
+   * Save search history to localStorage
+   */
+  private saveSearchHistory(): void {
+    try {
+      localStorage.setItem('search-history', JSON.stringify(this.searchHistory));
+    } catch (error) {
+      handleError(error, 'Failed to save search history');
+    }
+  }
+
+  /**
+   * Add a new search to history (max 10 items)
+   */
+  private addToSearchHistory(item: SearchHistoryItem): void {
+    // Remove duplicates based on coordinates
+    this.searchHistory = this.searchHistory.filter(
+      h => !(Math.abs(h.lat - item.lat) < 0.0001 && Math.abs(h.lng - item.lng) < 0.0001)
+    );
+    
+    // Add to front
+    this.searchHistory.unshift(item);
+    
+    // Keep only last 10
+    if (this.searchHistory.length > 10) {
+      this.searchHistory = this.searchHistory.slice(0, 10);
+    }
+    
+    this.saveSearchHistory();
+  }
+
+  /**
+   * Clear all search history
+   */
+  private clearSearchHistory(): void {
+    this.searchHistory = [];
+    this.saveSearchHistory();
+    showUserNotification('Search history cleared', 'success');
+  }
+
+  /**
+   * Jump to a location from search history
+   */
+  private goToSearchHistoryLocation(item: SearchHistoryItem): void {
+    if (!this.map) return;
+    
+    const location = new google.maps.LatLng(item.lat, item.lng);
+    this.map.setCenter(location);
+    this.map.setZoom(17);
+    
+    // Update search box text
+    if (this.searchBoxElement) {
+      this.searchBoxElement.value = item.placeName;
+    }
+    
+    this.showSearchHistory = false;
+    showUserNotification(`Jumped to ${item.placeName}`, 'success');
   }
 
   private debouncedFetchWeather() {
@@ -2271,19 +2365,80 @@ export class MapApp extends LitElement {
     return html`
       <div class="toolbar" role="toolbar">
         <div class="search-box-container">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            height="24px"
-            viewBox="0 -960 960 960"
-            width="24px"
-            fill="currentColor">
-            <path
-              d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
-          </svg>
+          ${this.isSearching ? html`
+            <div class="search-loading">
+              <div class="spinner"></div>
+            </div>
+          ` : html`
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24px"
+              viewBox="0 -960 960 960"
+              width="24px"
+              fill="currentColor">
+              <path
+                d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+            </svg>
+          `}
           <input
             id="search-box"
             type="text"
-            placeholder="Search for a location..." />
+            placeholder="Search for a location..."
+            @focus=${() => {
+              if (this.searchHistory.length > 0) {
+                this.showSearchHistory = true;
+              }
+            }}
+            @blur=${(e: FocusEvent) => {
+              // Delay to allow click on dropdown items
+              setTimeout(() => {
+                this.showSearchHistory = false;
+              }, 200);
+            }} />
+          ${this.searchBoxElement?.value ? html`
+            <button 
+              class="clear-search-button"
+              @click=${() => {
+                if (this.searchBoxElement) {
+                  this.searchBoxElement.value = '';
+                  this.showSearchHistory = false;
+                }
+              }}
+              title="Clear search">
+              <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                <path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/>
+              </svg>
+            </button>
+          ` : nothing}
+          
+          ${this.showSearchHistory && this.searchHistory.length > 0 ? html`
+            <div class="search-history-dropdown">
+              <div class="search-history-header">
+                <span>Recent Searches</span>
+                <button 
+                  class="clear-history-button"
+                  @click=${() => this.clearSearchHistory()}
+                  title="Clear history">
+                  Clear All
+                </button>
+              </div>
+              <div class="search-history-list">
+                ${this.searchHistory.map(item => html`
+                  <div 
+                    class="search-history-item"
+                    @click=${() => this.goToSearchHistoryLocation(item)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                      <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 294q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Z"/>
+                    </svg>
+                    <div class="history-item-content">
+                      <div class="history-item-name">${item.placeName}</div>
+                      <div class="history-item-coords">${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}</div>
+                    </div>
+                  </div>
+                `)}
+              </div>
+            </div>
+          ` : nothing}
         </div>
         <div class="divider"></div>
         <button
