@@ -21,11 +21,36 @@
  */
 
 import {Loader} from '@googlemaps/js-api-loader';
-import {html, LitElement, PropertyValueMap, nothing} from 'lit';
+import {html, LitElement, nothing} from 'lit';
 import {customElement, query, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 import {styleMap} from 'lit/directives/style-map.js';
 import tokml from 'tokml';
+
+// Import schema definitions for better type safety
+import {
+  WaypointColor,
+  TabIdentifier,
+  MapMode,
+  DEFAULT_WAYPOINT_VALUES,
+  SIMULATION_CONFIG,
+  WEATHER_THRESHOLDS
+} from './schema.js';
+
+// Import types separately to avoid conflicts
+import type {
+  Waypoint,
+  Mission,
+  WeatherData,
+  METARData,
+  TAFData,
+  ForecastData,
+  DroneTelemetry,
+  SimulationState,
+  DronePosition,
+  SimulationTrail,
+  WeatherEffect
+} from './schema.js';
 
 // MTS UAV Division Branding Constants
 const COMPANY_INFO = {
@@ -46,41 +71,7 @@ const WAYPOINT_COLORS = {
   orange: '#F29900',
 };
 
-type WaypointColor = keyof typeof WAYPOINT_COLORS;
-
-export interface Waypoint {
-  id: string;
-  lat: number;
-  lng: number;
-  altitude: number;
-  speed: number; // Speed in m/s
-  label: string;
-  notes: string;
-  color: WaypointColor;
-  isHome: boolean;
-}
-
-interface WeatherData {
-  temp: number;
-  tempF: number; // Fahrenheit temperature
-  description: string;
-  icon: string;
-  city: string;
-  wind?: {
-    speed: number;
-    deg: number;
-    gust?: number;
-  };
-  visibility?: number;
-  humidity?: number;
-  pressure?: number;
-  clouds?: number;
-  uvi?: number; // UV Index
-  dewPoint?: number;
-  feelsLike?: number;
-  feelsLikeF?: number;
-}
-
+// Keep local interface for DetailedWeatherConditions as it's not in schema
 interface DetailedWeatherConditions {
   flightSuitability: 'excellent' | 'good' | 'marginal' | 'poor' | 'no-fly';
   windCondition: 'calm' | 'light' | 'moderate' | 'strong' | 'severe';
@@ -88,133 +79,6 @@ interface DetailedWeatherConditions {
   temperatureCondition: 'optimal' | 'acceptable' | 'cold' | 'hot';
   recommendations: string[];
   warnings: string[];
-}
-
-interface MissionData {
-  id: string;
-  name: string;
-  waypoints: Waypoint[];
-  createdAt: string;
-  weather?: WeatherData;
-  metadata: {
-    totalDistance: number;
-    estimatedFlightTime: number;
-    maxAltitude: number;
-  };
-}
-
-interface METARData {
-  raw: string;
-  station: string;
-  time: string;
-  wind: {
-    direction: number;
-    speed: number;
-    gust?: number;
-    variable?: boolean;
-  };
-  visibility: number;
-  weather?: string[];
-  clouds: {
-    coverage: string;
-    base?: number;
-    type?: string;
-  }[];
-  temperature: number;
-  dewpoint: number;
-  altimeter: number;
-  remarks?: string;
-}
-
-interface TAFData {
-  raw: string;
-  station: string;
-  issueTime: string;
-  validPeriod: {
-    from: string;
-    to: string;
-  };
-  forecast: {
-    time: string;
-    wind: {
-      direction: number;
-      speed: number;
-      gust?: number;
-    };
-    visibility: number;
-    weather?: string[];
-    clouds: {
-      coverage: string;
-      base?: number;
-    }[];
-  }[];
-}
-
-interface ForecastData {
-  date: string;
-  temp: {
-    min: number;
-    max: number;
-  };
-  description: string;
-  icon: string;
-  humidity: number;
-  wind: {
-    speed: number;
-    deg: number;
-  };
-}
-
-// Simulation Mode Interfaces
-interface DroneTelemetry {
-  latitude: number;
-  longitude: number;
-  altitude: number; // meters
-  speed: number; // m/s
-  heading: number; // degrees (0-360)
-  battery: number; // percentage (0-100)
-  windSpeed: number; // m/s
-  windDirection: number; // degrees
-  groundSpeed: number; // m/s (speed relative to ground)
-  timeToWaypoint: number; // seconds
-  distanceToWaypoint: number; // meters
-}
-
-interface SimulationState {
-  isActive: boolean;
-  isPaused: boolean;
-  currentWaypointIndex: number;
-  progress: number; // 0-1 progress between current and next waypoint
-  speedMultiplier: number; // simulation speed (0.1x to 10x)
-  startTime: number; // timestamp when simulation started
-  elapsedTime: number; // seconds since simulation start
-  totalDistance: number; // total mission distance in meters
-  distanceTraveled: number; // distance traveled so far
-  estimatedTimeRemaining: number; // seconds remaining
-  stepMode: boolean; // true for step-by-step waypoint mode
-}
-
-interface DronePosition {
-  lat: number;
-  lng: number;
-  altitude: number;
-  heading: number;
-  timestamp: number;
-}
-
-interface SimulationTrail {
-  positions: DronePosition[];
-  maxLength: number; // maximum trail points to keep
-}
-
-interface WeatherEffect {
-  windVector: {
-    x: number; // wind effect on x-axis
-    y: number; // wind effect on y-axis
-  };
-  visibility: number; // visibility in meters
-  precipitation: boolean;
-  turbulence: number; // 0-1 turbulence factor
 }
 
 const GOOGLE_MAPS_API_KEY_STORAGE_KEY = 'googleMapsApiKey';
@@ -450,7 +314,7 @@ export class MapApp extends LitElement {
   @state() private metarData: METARData | null = null;
   @state() private tafData: TAFData | null = null;
   @state() private forecastData: ForecastData[] = [];
-  @state() private currentMission: MissionData | null = null;
+  @state() private currentMission: Mission | null = null;
   @state() private autoAddWaypoints = true; // New state for automatic waypoint adding
   @state() private darkMode = false; // New state for dark mode
 
@@ -868,13 +732,16 @@ export class MapApp extends LitElement {
     }
 
     const metadata = this.calculateMissionMetadata();
-    const mission: MissionData = {
+    const mission: Mission = {
       id: crypto.randomUUID(),
       name: `Mission ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+      description: `UAV Mission planned on ${new Date().toLocaleDateString()}`,
       waypoints: Array.from(this.waypoints.values()),
       createdAt: new Date().toISOString(),
-      weather: this.missionWeather || undefined,
-      metadata
+      updatedAt: new Date().toISOString(),
+      weatherSnapshot: this.missionWeather || undefined,
+      estimatedDuration: metadata.estimatedFlightTime,
+      totalDistance: metadata.totalDistance
     };
 
     // Save to file
@@ -902,7 +769,7 @@ export class MapApp extends LitElement {
 
       try {
         const text = await file.text();
-        const mission: MissionData = JSON.parse(text);
+        const mission: Mission = JSON.parse(text);
         
         // Clear existing waypoints
         this.waypoints.clear();
@@ -918,7 +785,7 @@ export class MapApp extends LitElement {
         
         this.waypoints = waypointMap;
         this.currentMission = mission;
-        this.missionWeather = mission.weather || null;
+        this.missionWeather = mission.weatherSnapshot || null;
         this.selectedWaypointId = null;
         
         // Update flight path
