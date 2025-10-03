@@ -2188,6 +2188,140 @@ export class MapApp extends LitElement {
     `;
   }
 
+  /**
+   * Renders the simulation top bar with telemetry and mission data
+   */
+  private renderTopBar() {
+    if (!this.showTopBar) return nothing;
+
+    const waypoints = Array.from(this.waypoints.values()).sort((a, b) => 
+      parseInt(a.id.replace('waypoint-', '')) - parseInt(b.id.replace('waypoint-', ''))
+    );
+
+    const currentWaypointIndex = this.simulationState.currentWaypointIndex;
+    const totalWaypoints = waypoints.length;
+    const missionProgress = totalWaypoints > 0 ? (this.simulationState.distanceTraveled / this.simulationState.totalDistance) * 100 : 0;
+
+    // Weather alert status
+    const getWeatherAlertClass = () => {
+      if (!this.missionWeather?.wind) return 'safe';
+      const windSpeed = this.missionWeather.wind.speed;
+      if (windSpeed > 15) return 'danger';
+      if (windSpeed > 10) return 'warning';
+      return 'safe';
+    };
+
+    const formatTime = (seconds: number) => {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      return hrs > 0 ? `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}` : 
+                       `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return html`
+      <div class="simulation-top-bar">
+        <!-- Mission Status Section -->
+        <div class="top-bar-section mission-status">
+          <div class="mission-info">
+            <h3>🚁 Mission Active</h3>
+            <div class="mission-details">
+              <span>WP ${currentWaypointIndex + 1}/${totalWaypoints}</span>
+              <span>•</span>
+              <span>${missionProgress.toFixed(1)}% Complete</span>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${missionProgress}%"></div>
+          </div>
+        </div>
+
+        <!-- Telemetry Section -->
+        <div class="top-bar-section telemetry-data">
+          <div class="telemetry-grid">
+            <div class="telemetry-item">
+              <span class="label">Position</span>
+              <span class="value">
+                ${this.droneTelemetry.latitude.toFixed(6)}, ${this.droneTelemetry.longitude.toFixed(6)}
+              </span>
+            </div>
+            <div class="telemetry-item">
+              <span class="label">Altitude</span>
+              <span class="value">${this.droneTelemetry.altitude.toFixed(1)}m</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="label">Speed</span>
+              <span class="value">${this.droneTelemetry.speed.toFixed(1)} m/s</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="label">Heading</span>
+              <span class="value">${this.droneTelemetry.heading.toFixed(0)}°</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="label">Battery</span>
+              <span class="value battery-${this.droneTelemetry.battery < 20 ? 'low' : this.droneTelemetry.battery < 50 ? 'medium' : 'high'}">
+                ${this.droneTelemetry.battery.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weather Section -->
+        <div class="top-bar-section weather-snapshot">
+          <div class="weather-status ${getWeatherAlertClass()}">
+            <div class="weather-primary">
+              <span class="weather-temp">
+                ${this.missionWeather?.tempF ? `${Math.round(this.missionWeather.tempF)}°F` : 'N/A'}
+              </span>
+              <span class="weather-desc">
+                ${this.missionWeather?.description || 'No data'}
+              </span>
+            </div>
+            ${this.missionWeather?.wind ? html`
+              <div class="weather-wind">
+                <span>🌬️ ${this.missionWeather.wind.speed.toFixed(1)} m/s</span>
+                <span>@ ${this.missionWeather.wind.deg}°</span>
+              </div>
+            ` : nothing}
+          </div>
+        </div>
+
+        <!-- Flight Stats Section -->
+        <div class="top-bar-section flight-stats">
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Flight Time</span>
+              <span class="stat-value">${formatTime(this.simulationState.elapsedTime)}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Remaining</span>
+              <span class="stat-value">${formatTime(this.simulationState.estimatedTimeRemaining)}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Distance</span>
+              <span class="stat-value">${(this.simulationState.distanceTraveled / 1000).toFixed(2)} km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status Indicators -->
+        <div class="top-bar-section status-indicators">
+          <div class="status-badge simulation-speed">
+            ${this.simulationState.speedMultiplier}x
+          </div>
+          ${this.simulationState.isPaused ? html`
+            <div class="status-badge paused">⏸️ PAUSED</div>
+          ` : html`
+            <div class="status-badge active">▶️ ACTIVE</div>
+          `}
+          ${this.simulationState.stepMode ? html`
+            <div class="status-badge step-mode">👣 STEP</div>
+          ` : nothing}
+        </div>
+      </div>
+    `;
+  }
+
   private renderSidebar() {
     return html`
       <div
