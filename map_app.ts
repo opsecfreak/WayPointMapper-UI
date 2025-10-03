@@ -499,6 +499,7 @@ export class MapApp extends LitElement {
   private trailPolyline?: google.maps.Polyline;
   private simulationAnimationId?: number;
   private telemetryUpdateInterval?: number;
+  private weatherOverlays: (google.maps.marker.AdvancedMarkerElement | google.maps.Rectangle)[] = [];
   private weatherEffect: WeatherEffect = {
     windVector: { x: 0, y: 0 },
     visibility: 10000,
@@ -1451,6 +1452,7 @@ export class MapApp extends LitElement {
     this.showTopBar = true;
     this.initializeDronePosition();
     this.updateWeatherEffects();
+    this.updateWeatherOverlays();
     
     // Start animation loop
     this.startAnimationLoop();
@@ -1495,6 +1497,7 @@ export class MapApp extends LitElement {
     this.stopTelemetryUpdates();
     this.removeDroneMarker();
     this.removeTrailPolyline();
+    this.removeWeatherOverlays();
     this.droneTrail.positions = [];
   }
 
@@ -1903,6 +1906,180 @@ export class MapApp extends LitElement {
     if (this.telemetryUpdateInterval) {
       clearInterval(this.telemetryUpdateInterval);
       this.telemetryUpdateInterval = undefined;
+    }
+  }
+
+  // ============================================================================
+  // WEATHER EFFECTS VISUALIZATION
+  // ============================================================================
+
+  /**
+   * Creates weather overlay markers on the map
+   */
+  private createWeatherOverlays() {
+    if (!this.map || !this.missionWeather?.wind) return;
+
+    this.removeWeatherOverlays();
+
+    // Add wind indicators at key locations
+    const mapBounds = this.map.getBounds();
+    if (!mapBounds) return;
+
+    const ne = mapBounds.getNorthEast();
+    const sw = mapBounds.getSouthWest();
+    
+    // Create wind arrows at grid points
+    const gridSize = 5; // 5x5 grid
+    for (let i = 0; i <= gridSize; i++) {
+      for (let j = 0; j <= gridSize; j++) {
+        const lat = sw.lat() + (ne.lat() - sw.lat()) * (i / gridSize);
+        const lng = sw.lng() + (ne.lng() - sw.lng()) * (j / gridSize);
+        
+        this.createWindArrow(lat, lng);
+      }
+    }
+
+    // Add precipitation effect if present
+    if (this.weatherEffect.precipitation) {
+      this.addPrecipitationOverlay();
+    }
+  }
+
+  /**
+   * Creates a wind arrow indicator at specified coordinates
+   */
+  private createWindArrow(lat: number, lng: number) {
+    if (!this.map || !this.missionWeather?.wind) return;
+
+    const windSpeed = this.missionWeather.wind.speed;
+    const windDir = this.missionWeather.wind.deg;
+    
+    // Skip if wind is too light
+    if (windSpeed < 2) return;
+
+    // Create wind arrow element
+    const arrowElement = document.createElement('div');
+    arrowElement.innerHTML = `
+      <div style="
+        width: 20px;
+        height: 20px;
+        position: relative;
+        transform: rotate(${windDir}deg);
+        opacity: ${Math.min(windSpeed / 20, 0.8)};
+      ">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 2L16 10H13V18H7V10H4L10 2Z" fill="#2196F3" stroke="white" stroke-width="1"/>
+        </svg>
+        <div style="
+          position: absolute;
+          top: 22px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 8px;
+          color: #2196F3;
+          font-weight: bold;
+          text-shadow: 1px 1px 1px white;
+        ">${windSpeed.toFixed(0)}</div>
+      </div>
+    `;
+
+    // Add to map as a marker
+    const windMarker = new google.maps.marker.AdvancedMarkerElement({
+      map: this.map,
+      position: { lat, lng },
+      content: arrowElement,
+      title: `Wind: ${windSpeed.toFixed(1)} m/s @ ${windDir}°`
+    });
+
+    // Store reference for cleanup
+    if (!this.weatherOverlays) {
+      this.weatherOverlays = [];
+    }
+    this.weatherOverlays.push(windMarker);
+  }
+
+  /**
+   * Adds precipitation overlay to the map
+   */
+  private addPrecipitationOverlay() {
+    if (!this.map) return;
+
+    const mapBounds = this.map.getBounds();
+    if (!mapBounds) return;
+
+    // Create precipitation overlay rectangle
+    const precipitationOverlay = new google.maps.Rectangle({
+      bounds: mapBounds,
+      strokeColor: '#4FC3F7',
+      strokeOpacity: 0.3,
+      strokeWeight: 1,
+      fillColor: '#4FC3F7',
+      fillOpacity: 0.1,
+      map: this.map
+    });
+
+    // Add animated rain/snow effect
+    const precipitationElement = document.createElement('div');
+    precipitationElement.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background-image: radial-gradient(2px 2px at 20px 30px, #4FC3F7, transparent),
+                        radial-gradient(2px 2px at 40px 70px, rgba(79, 195, 247, 0.8), transparent),
+                        radial-gradient(1px 1px at 90px 40px, #4FC3F7, transparent);
+      background-repeat: repeat;
+      background-size: 100px 100px;
+      animation: precipitation 2s linear infinite;
+      opacity: 0.6;
+    `;
+
+    // Add CSS animation for precipitation
+    if (!document.getElementById('precipitation-styles')) {
+      const style = document.createElement('style');
+      style.id = 'precipitation-styles';
+      style.textContent = `
+        @keyframes precipitation {
+          0% { transform: translateY(-100px); }
+          100% { transform: translateY(100px); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Store references for cleanup
+    if (!this.weatherOverlays) {
+      this.weatherOverlays = [];
+    }
+    this.weatherOverlays.push(precipitationOverlay);
+  }
+
+  /**
+   * Removes all weather overlay elements
+   */
+  private removeWeatherOverlays() {
+    if (this.weatherOverlays) {
+      this.weatherOverlays.forEach(overlay => {
+        if (overlay instanceof google.maps.marker.AdvancedMarkerElement) {
+          overlay.map = null;
+        } else if (overlay instanceof google.maps.Rectangle) {
+          overlay.setMap(null);
+        }
+      });
+      this.weatherOverlays = [];
+    }
+  }
+
+  /**
+   * Updates weather overlays based on current conditions
+   */
+  private updateWeatherOverlays() {
+    if (this.simulationState.isActive) {
+      this.createWeatherOverlays();
+    } else {
+      this.removeWeatherOverlays();
     }
   }
 
