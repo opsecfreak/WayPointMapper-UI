@@ -165,6 +165,58 @@ interface ForecastData {
   };
 }
 
+// Simulation Mode Interfaces
+interface DroneTelemetry {
+  latitude: number;
+  longitude: number;
+  altitude: number; // meters
+  speed: number; // m/s
+  heading: number; // degrees (0-360)
+  battery: number; // percentage (0-100)
+  windSpeed: number; // m/s
+  windDirection: number; // degrees
+  groundSpeed: number; // m/s (speed relative to ground)
+  timeToWaypoint: number; // seconds
+  distanceToWaypoint: number; // meters
+}
+
+interface SimulationState {
+  isActive: boolean;
+  isPaused: boolean;
+  currentWaypointIndex: number;
+  progress: number; // 0-1 progress between current and next waypoint
+  speedMultiplier: number; // simulation speed (0.1x to 10x)
+  startTime: number; // timestamp when simulation started
+  elapsedTime: number; // seconds since simulation start
+  totalDistance: number; // total mission distance in meters
+  distanceTraveled: number; // distance traveled so far
+  estimatedTimeRemaining: number; // seconds remaining
+  stepMode: boolean; // true for step-by-step waypoint mode
+}
+
+interface DronePosition {
+  lat: number;
+  lng: number;
+  altitude: number;
+  heading: number;
+  timestamp: number;
+}
+
+interface SimulationTrail {
+  positions: DronePosition[];
+  maxLength: number; // maximum trail points to keep
+}
+
+interface WeatherEffect {
+  windVector: {
+    x: number; // wind effect on x-axis
+    y: number; // wind effect on y-axis
+  };
+  visibility: number; // visibility in meters
+  precipitation: boolean;
+  turbulence: number; // 0-1 turbulence factor
+}
+
 const GOOGLE_MAPS_API_KEY_STORAGE_KEY = 'googleMapsApiKey';
 const WEATHER_API_KEY_STORAGE_KEY = 'weatherApiKey';
 const LOS_ANGELES_CENTER = {lat: 34.0522, lng: -118.2437};
