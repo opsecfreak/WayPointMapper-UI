@@ -1215,7 +1215,7 @@ export class MapApp extends LitElement {
    */
   private exportMavlinkPlan() {
     if (this.waypoints.size === 0) {
-      alert('No waypoints to export. Please add waypoints first.');
+      showUserNotification('No waypoints to export. Please add waypoints first.', 'warning');
       return;
     }
 
@@ -1246,7 +1246,7 @@ export class MapApp extends LitElement {
               command: 22, // MAV_CMD_NAV_TAKEOFF
               doJumpId: 1,
               frame: 3,
-              params: [0, 0, 0, 0, waypoints.find(wp => wp.isHome)?.lat || 0, waypoints.find(wp => wp.isHome)?.lng || 0, waypoints.find(wp => wp.isHome)?.altitude || 100],
+              params: [0, 0, 0, 0, waypoints.find(wp => wp.isHome)?.lat || 0, waypoints.find(wp => wp.isHome)?.lng || 0, waypoints.find(wp => wp.isHome)?.altitude || DEFAULT_WAYPOINT_VALUES.altitude],
               type: 'SimpleItem'
             },
             // Waypoints
