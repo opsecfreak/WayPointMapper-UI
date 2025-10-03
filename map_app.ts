@@ -445,7 +445,7 @@ export class MapApp extends LitElement {
   @state() private selectedWaypointId: string | null = null;
   @state() private mapMode: 'pan' | 'add_waypoint' = 'add_waypoint'; // Default to add mode
   @state() private weather: WeatherData | null = null;
-  @state() private activeTab: 'waypoints' | 'weather' | 'settings' = 'waypoints';
+  @state() private activeTab: 'waypoints' | 'weather' | 'settings' | 'simulation' = 'waypoints';
   @state() private missionWeather: WeatherData | null = null;
   @state() private metarData: METARData | null = null;
   @state() private tafData: TAFData | null = null;
@@ -2974,6 +2974,7 @@ export class MapApp extends LitElement {
 
     return html`
       <div class="gdm-map-app">
+        ${this.renderTopBar()}
         <div
           class="main-container"
           role="application"
