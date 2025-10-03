@@ -2194,6 +2194,79 @@ export class MapApp extends LitElement {
     this.fetchMissionWeather();
   }
 
+  /**
+   * Sets a waypoint as the home point
+   */
+  private setWaypointAsHome(waypointId: string): void {
+    try {
+      const newWaypoints = new Map(this.waypoints);
+      
+      // Remove isHome from all waypoints
+      newWaypoints.forEach((wp) => {
+        if (wp.isHome) {
+          wp.isHome = false;
+          // Restore original label if it was "Home"
+          if (wp.label === 'Home') {
+            const index = Array.from(newWaypoints.values()).indexOf(wp) + 1;
+            wp.label = `Waypoint ${index}`;
+          }
+          // Change color back to default
+          wp.color = 'red';
+        }
+      });
+      
+      // Set new home point
+      const homeWaypoint = newWaypoints.get(waypointId);
+      if (homeWaypoint) {
+        homeWaypoint.isHome = true;
+        homeWaypoint.label = 'Home';
+        homeWaypoint.color = 'blue';
+        
+        this.waypoints = newWaypoints;
+        
+        // Update all markers to reflect the change
+        this.updateAllMarkers();
+        
+        // Update flight path
+        this.updateFlightPath();
+        
+        showUserNotification('Home point updated successfully', 'success');
+      }
+    } catch (error) {
+      handleError(error, 'Set Home Point');
+    }
+  }
+
+  /**
+   * Centers the map on the home point
+   */
+  private goToHomePoint(): void {
+    const homePoint = Array.from(this.waypoints.values()).find(wp => wp.isHome);
+    if (homePoint && this.map) {
+      this.map.setCenter({ lat: homePoint.lat, lng: homePoint.lng });
+      this.map.setZoom(17);
+      showUserNotification('Centered on home point', 'info', 2000);
+    } else {
+      showUserNotification('No home point set', 'warning');
+    }
+  }
+
+  /**
+   * Updates all map markers to reflect current waypoint state
+   */
+  private updateAllMarkers(): void {
+    // Remove all existing markers
+    this.mapMarkers.forEach((marker) => {
+      marker.map = null;
+    });
+    this.mapMarkers.clear();
+    
+    // Recreate all markers
+    this.waypoints.forEach((waypoint) => {
+      this.createMapMarker(waypoint);
+    });
+  }
+
   private renderToolbar() {
     return html`
       <div class="toolbar" role="toolbar">
@@ -2439,6 +2512,47 @@ export class MapApp extends LitElement {
     `;
   }
 
+  private renderHomePointSection() {
+    const homePoint = [...this.waypoints.values()].find(wp => wp.isHome);
+    
+    if (!homePoint) {
+      return html`
+        <div class="home-point-section empty">
+          <div class="info-row">
+            <span class="icon">🏠</span>
+            <span class="message">No home point set. Set a waypoint as home to enable RTH (Return to Home).</span>
+          </div>
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="home-point-section">
+        <div class="home-point-header">
+          <span class="icon">🏠</span>
+          <strong>Home Point</strong>
+        </div>
+        <div class="home-point-info">
+          <div class="info-row">
+            <span class="label">Coordinates:</span>
+            <span class="value">${homePoint.lat.toFixed(6)}, ${homePoint.lng.toFixed(6)}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Altitude:</span>
+            <span class="value">${homePoint.altitude}m</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Label:</span>
+            <span class="value">${homePoint.label}</span>
+          </div>
+        </div>
+        <button class="go-to-home-button" @click=${() => this.goToHomePoint()}>
+          📍 Go to Home Point
+        </button>
+      </div>
+    `;
+  }
+
   private renderWaypointsTab() {
     const selectedWaypoint = this.selectedWaypointId
       ? this.waypoints.get(this.selectedWaypointId)
@@ -2447,6 +2561,7 @@ export class MapApp extends LitElement {
     return html`
       <div class="waypoints-tab" role="tabpanel">
         <h3>Mission Waypoints</h3>
+        ${this.renderHomePointSection()}
         <div class="waypoint-list" role="list">
           ${[...this.waypoints.values()].map(
             (waypoint) => html`
@@ -2944,6 +3059,18 @@ export class MapApp extends LitElement {
                 notes: (e.target as HTMLTextAreaElement).value,
               })}></textarea>
         </div>
+        
+        <!-- Home Point Control -->
+        <div class="form-group">
+          <button
+            class="set-home-button"
+            @click=${() => this.setWaypointAsHome(waypoint.id)}
+            ?disabled=${waypoint.isHome}
+            title=${waypoint.isHome ? 'This is already the home point' : 'Set this waypoint as home point'}>
+            🏠 ${waypoint.isHome ? 'Current Home Point' : 'Set as Home Point'}
+          </button>
+        </div>
+        
         <button
           class="delete-button"
           @click=${() => this.deleteWaypoint(waypoint.id)}>

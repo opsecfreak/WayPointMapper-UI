@@ -1568,3 +1568,153 @@ body {
 [data-theme="dark"] .weather-status.safe { border-color: #66BB6A; }
 [data-theme="dark"] .weather-status.warning { border-color: #FFB74D; }
 [data-theme="dark"] .weather-status.danger { border-color: #EF5350; }
+
+/* ============================================================================
+   HOME POINT MANAGEMENT STYLES
+   ============================================================================ */
+
+/* Home Point Section */
+.home-point-section {
+  background-color: var(--color-bg2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--color-accent);
+}
+
+.home-point-section.empty {
+  border-left-color: var(--color-text2);
+  opacity: 0.8;
+}
+
+.home-point-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 1.1em;
+  color: var(--color-text);
+}
+
+.home-point-header .icon {
+  font-size: 1.3em;
+}
+
+.home-point-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.home-point-info .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9em;
+  padding: 4px 0;
+}
+
+.home-point-info .info-row .label {
+  color: var(--color-text2);
+  font-weight: 500;
+}
+
+.home-point-info .info-row .value {
+  color: var(--color-text);
+  font-family: 'Inconsolata', monospace;
+  font-weight: bold;
+}
+
+.home-point-section.empty .info-row {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.home-point-section.empty .icon {
+  font-size: 1.2em;
+}
+
+.home-point-section.empty .message {
+  color: var(--color-text2);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* Home Point Buttons */
+.go-to-home-button,
+.set-home-button {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.go-to-home-button {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.go-to-home-button:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.go-to-home-button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.set-home-button {
+  background-color: #4CAF50;
+  color: white;
+  margin-top: 12px;
+}
+
+.set-home-button:hover:not(:disabled) {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.set-home-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.set-home-button:disabled {
+  background-color: var(--color-bg3);
+  color: var(--color-text2);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .home-point-section {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .home-point-info .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .go-to-home-button,
+  .set-home-button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+  }
+}
+
