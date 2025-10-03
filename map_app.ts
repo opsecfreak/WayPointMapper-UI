@@ -1,6 +1,5 @@
-// FIX: Declare google as `any` to resolve namespace errors since the
-// type definitions for google.maps are not available in this environment.
-declare const google: any;
+// @ts-ignore - Google Maps types are loaded at runtime
+/// <reference types="google.maps" />
 
 /**
  * @license
