@@ -17,7 +17,6 @@
   "devDependencies": {
     "@types/google.maps": "^3.58.1",
     "@types/node": "^22.14.0",
-    "@types/jspdf": "^2.3.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

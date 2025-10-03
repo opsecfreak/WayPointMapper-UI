@@ -25,7 +25,6 @@ import {html, LitElement, PropertyValueMap, nothing} from 'lit';
 import {customElement, query, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 import {styleMap} from 'lit/directives/style-map.js';
-import jsPDF from 'jspdf';
 import tokml from 'tokml';
 
 // MTS UAV Division Branding Constants
@@ -554,13 +553,17 @@ export class MapApp extends LitElement {
    * Generate and download a comprehensive PDF mission briefing
    * Includes MTS UAV Division branding and detailed mission analysis
    */
-  private generatePDFBriefing() {
+  private async generatePDFBriefing() {
     if (this.waypoints.size === 0) {
       alert('No waypoints to include in briefing. Please add waypoints first.');
       return;
     }
 
     try {
+      // Dynamic import for jsPDF
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
+      
       const doc = new jsPDF();
       const metadata = this.calculateMissionMetadata();
       const conditions = this.missionWeather ? analyzeFlightConditions(this.missionWeather) : null;
@@ -1214,43 +1217,105 @@ export class MapApp extends LitElement {
             <div class="weather-header">
               <img src=${this.missionWeather.icon} alt="Weather icon" />
               <div class="weather-main">
-                <div class="weather-temp">${Math.round(this.missionWeather.temp)}°C</div>
+                <div class="weather-temp">
+                  ${Math.round(this.missionWeather.tempF)}°F 
+                  <span class="temp-celsius">(${Math.round(this.missionWeather.temp)}°C)</span>
+                </div>
                 <div class="weather-desc">${this.missionWeather.description}</div>
                 <div class="weather-city">${this.missionWeather.city}</div>
               </div>
             </div>
             
             <div class="weather-details">
-              ${this.missionWeather.wind ? html`
+              ${this.missionWeather.feelsLikeF ? html`
                 <div class="weather-item">
-                  <strong>Wind:</strong> ${this.missionWeather.wind.speed} m/s 
-                  (${this.missionWeather.wind.deg}°)
+                  <strong>Feels Like:</strong> ${Math.round(this.missionWeather.feelsLikeF)}°F 
+                  (${Math.round(this.missionWeather.feelsLike || 0)}°C)
                 </div>
               ` : ''}
+              
+              ${this.missionWeather.wind ? html`
+                <div class="weather-item">
+                  <strong>Wind:</strong> ${this.missionWeather.wind.speed} m/s from ${this.missionWeather.wind.deg}°
+                  ${this.missionWeather.wind.gust ? html` (gusts to ${this.missionWeather.wind.gust} m/s)` : ''}
+                </div>
+              ` : ''}
+              
               ${this.missionWeather.visibility ? html`
                 <div class="weather-item">
                   <strong>Visibility:</strong> ${(this.missionWeather.visibility / 1000).toFixed(1)} km
                 </div>
               ` : ''}
+              
               <div class="weather-item">
                 <strong>Humidity:</strong> ${this.missionWeather.humidity}%
               </div>
+              
               <div class="weather-item">
                 <strong>Pressure:</strong> ${this.missionWeather.pressure} hPa
               </div>
+              
+              ${this.missionWeather.clouds !== undefined ? html`
+                <div class="weather-item">
+                  <strong>Cloud Cover:</strong> ${this.missionWeather.clouds}%
+                </div>
+              ` : ''}
+              
+              ${this.missionWeather.uvi !== undefined ? html`
+                <div class="weather-item">
+                  <strong>UV Index:</strong> ${this.missionWeather.uvi}
+                </div>
+              ` : ''}
+              
+              ${this.missionWeather.dewPoint !== undefined ? html`
+                <div class="weather-item">
+                  <strong>Dew Point:</strong> ${Math.round(celsiusToFahrenheit(this.missionWeather.dewPoint))}°F 
+                  (${Math.round(this.missionWeather.dewPoint)}°C)
+                </div>
+              ` : ''}
             </div>
             
             ${metadata ? html`
               <div class="flight-conditions">
                 <h4>Flight Conditions Analysis</h4>
-                <div class="condition-item">
-                  <strong>Wind Impact:</strong> ${this.missionWeather.wind && this.missionWeather.wind.speed > 10 ? 
-                    'High wind speeds may affect flight stability' : 'Wind conditions suitable for flight'}
-                </div>
-                <div class="condition-item">
-                  <strong>Visibility:</strong> ${this.missionWeather.visibility && this.missionWeather.visibility < 5000 ?
-                    'Reduced visibility - exercise caution' : 'Good visibility for flight operations'}
-                </div>
+                ${(() => {
+                  const conditions = analyzeFlightConditions(this.missionWeather);
+                  return html`
+                    <div class="condition-summary ${conditions.flightSuitability}">
+                      <strong>Overall Suitability:</strong> ${conditions.flightSuitability.toUpperCase()}
+                    </div>
+                    
+                    <div class="condition-details">
+                      <div class="condition-item">
+                        <strong>Wind:</strong> ${conditions.windCondition.toUpperCase()}
+                      </div>
+                      <div class="condition-item">
+                        <strong>Visibility:</strong> ${conditions.visibilityCondition.toUpperCase()}
+                      </div>
+                      <div class="condition-item">
+                        <strong>Temperature:</strong> ${conditions.temperatureCondition.toUpperCase()}
+                      </div>
+                    </div>
+                    
+                    ${conditions.warnings.length > 0 ? html`
+                      <div class="warnings">
+                        <h5>⚠️ Warnings:</h5>
+                        ${conditions.warnings.map(warning => html`
+                          <div class="warning-item">• ${warning}</div>
+                        `)}
+                      </div>
+                    ` : ''}
+                    
+                    ${conditions.recommendations.length > 0 ? html`
+                      <div class="recommendations">
+                        <h5>💡 Recommendations:</h5>
+                        ${conditions.recommendations.map(rec => html`
+                          <div class="recommendation-item">• ${rec}</div>
+                        `)}
+                      </div>
+                    ` : ''}
+                  `;
+                })()}
               </div>
             ` : ''}
           </div>
