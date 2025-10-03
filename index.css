@@ -993,3 +993,578 @@ body {
   font-size: 0.8em;
   color: var(--color-text2);
 }
+
+/* ============================================================================
+   SIMULATION MODE STYLES
+   ============================================================================ */
+
+/* Top Bar Telemetry Display */
+.simulation-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, var(--color-bg2) 0%, var(--color-bg3) 100%);
+  border-bottom: 2px solid var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  overflow-x: auto;
+  min-height: 60px;
+}
+
+.top-bar-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.mission-status {
+  min-width: 200px;
+}
+
+.mission-info h3 {
+  font-size: 1.1em;
+  color: var(--color-accent);
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mission-details {
+  font-size: 0.9em;
+  color: var(--color-text2);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent) 0%, #4CAF50 100%);
+  transition: width 0.3s ease;
+}
+
+/* Telemetry Data Grid */
+.telemetry-data {
+  min-width: 400px;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.telemetry-item .label {
+  font-size: 0.8em;
+  color: var(--color-text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.telemetry-item .value {
+  font-size: 1em;
+  font-weight: bold;
+  color: var(--color-text);
+  font-family: 'Inconsolata', monospace;
+}
+
+.battery-high { color: #4CAF50; }
+.battery-medium { color: #FF9800; }
+.battery-low { color: #F44336; }
+
+/* Weather Snapshot */
+.weather-snapshot {
+  min-width: 150px;
+}
+
+.weather-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+}
+
+.weather-status.safe { border-color: #4CAF50; }
+.weather-status.warning { border-color: #FF9800; }
+.weather-status.danger { border-color: #F44336; }
+
+.weather-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.weather-temp {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.weather-desc {
+  font-size: 0.8em;
+  color: var(--color-text2);
+  text-transform: capitalize;
+}
+
+.weather-wind {
+  font-size: 0.8em;
+  color: var(--color-text2);
+  display: flex;
+  gap: 4px;
+}
+
+/* Flight Stats */
+.flight-stats {
+  min-width: 180px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.7em;
+  color: var(--color-text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--color-text);
+  font-family: 'Inconsolata', monospace;
+}
+
+/* Status Indicators */
+.status-indicators {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.simulation-speed {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.status-badge.active {
+  background: #4CAF50;
+  color: white;
+}
+
+.status-badge.paused {
+  background: #FF9800;
+  color: white;
+}
+
+.status-badge.step-mode {
+  background: #9C27B0;
+  color: white;
+}
+
+/* Simulation Tab Styles */
+.simulation-tab {
+  padding: 20px;
+}
+
+.simulation-tab h3 {
+  color: var(--color-accent);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.simulation-tab h4 {
+  color: var(--color-text);
+  margin: 16px 0 12px 0;
+  font-size: 1em;
+  border-bottom: 1px solid var(--color-sidebar-border);
+  padding-bottom: 4px;
+}
+
+.simulation-warning {
+  background: #FFF3CD;
+  border: 1px solid #FFEAA7;
+  color: #856404;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+/* Control Buttons */
+.control-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.start-simulation-btn,
+.pause-simulation-btn,
+.stop-simulation-btn,
+.reset-simulation-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.start-simulation-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.start-simulation-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.pause-simulation-btn {
+  background: #FF9800;
+  color: white;
+}
+
+.pause-simulation-btn:hover:not(:disabled) {
+  background: #f57c00;
+}
+
+.pause-simulation-btn.paused {
+  background: #4CAF50;
+}
+
+.stop-simulation-btn {
+  background: #F44336;
+  color: white;
+}
+
+.stop-simulation-btn:hover:not(:disabled) {
+  background: #da190b;
+}
+
+.reset-simulation-btn {
+  background: var(--color-bg3);
+  color: var(--color-text);
+  border: 1px solid var(--color-sidebar-border);
+}
+
+.reset-simulation-btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* Speed Control */
+.speed-control {
+  margin-bottom: 16px;
+}
+
+.speed-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.speed-slider-container label {
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.speed-slider-container input[type="range"] {
+  width: 100%;
+  height: 6px;
+  background: var(--color-bg3);
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.speed-slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.speed-presets {
+  display: flex;
+  gap: 4px;
+}
+
+.speed-presets button {
+  padding: 4px 8px;
+  border: 1px solid var(--color-sidebar-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.speed-presets button:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* Simulation Options */
+.simulation-options {
+  margin-bottom: 16px;
+}
+
+.option-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+}
+
+/* Status Display */
+.simulation-status,
+.telemetry-display {
+  background: var(--color-bg3);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.status-item .label {
+  font-size: 0.9em;
+  color: var(--color-text2);
+}
+
+.status-item .value {
+  font-family: 'Inconsolata', monospace;
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+/* Trail Control */
+.trail-control {
+  margin-bottom: 16px;
+}
+
+.trail-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trail-options label {
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.trail-options input[type="range"] {
+  width: 100%;
+  height: 6px;
+  background: var(--color-bg3);
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.trail-options input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.trail-options button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-sidebar-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.trail-options button:hover {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* Help Section */
+.simulation-help {
+  background: var(--color-bg2);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid var(--color-accent);
+}
+
+.simulation-help ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.simulation-help li {
+  padding: 2px 0;
+  color: var(--color-text2);
+  position: relative;
+  padding-left: 16px;
+}
+
+.simulation-help li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--color-accent);
+}
+
+/* Responsive Design for Top Bar */
+@media (max-width: 1200px) {
+  .simulation-top-bar {
+    flex-wrap: wrap;
+    min-height: auto;
+    padding: 12px 16px;
+  }
+  
+  .top-bar-section {
+    min-width: auto;
+    flex: 1;
+  }
+  
+  .telemetry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .simulation-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .telemetry-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .status-indicators {
+    justify-content: center;
+  }
+  
+  .control-buttons {
+    flex-direction: column;
+  }
+  
+  .speed-presets {
+    justify-content: center;
+  }
+}
+
+/* Adjust main container when top bar is visible */
+.gdm-map-app:has(.simulation-top-bar) .main-container {
+  margin-top: 60px;
+}
+
+@media (max-width: 1200px) {
+  .gdm-map-app:has(.simulation-top-bar) .main-container {
+    margin-top: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .gdm-map-app:has(.simulation-top-bar) .main-container {
+    margin-top: 100px;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .simulation-warning {
+  background: #3E2723;
+  border-color: #5D4037;
+  color: #FFCC80;
+}
+
+[data-theme="dark"] .weather-status.safe { border-color: #66BB6A; }
+[data-theme="dark"] .weather-status.warning { border-color: #FFB74D; }
+[data-theme="dark"] .weather-status.danger { border-color: #EF5350; }
