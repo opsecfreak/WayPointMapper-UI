@@ -1417,6 +1417,495 @@ export class MapApp extends LitElement {
     }
   }
 
+  // ============================================================================
+  // SIMULATION MODE METHODS
+  // ============================================================================
+
+  /**
+   * Starts the drone simulation along the planned waypoints
+   */
+  private startSimulation() {
+    if (this.waypoints.size < 2) {
+      alert('Please add at least 2 waypoints to start simulation');
+      return;
+    }
+
+    // Initialize simulation state
+    this.simulationState = {
+      ...this.simulationState,
+      isActive: true,
+      isPaused: false,
+      currentWaypointIndex: 0,
+      progress: 0,
+      startTime: Date.now(),
+      elapsedTime: 0,
+      totalDistance: this.calculateTotalDistance(),
+      distanceTraveled: 0,
+      stepMode: false
+    };
+
+    // Clear existing trail
+    this.droneTrail.positions = [];
+
+    // Show top bar and set initial position
+    this.showTopBar = true;
+    this.initializeDronePosition();
+    this.updateWeatherEffects();
+    
+    // Start animation loop
+    this.startAnimationLoop();
+    
+    // Start telemetry updates
+    this.startTelemetryUpdates();
+  }
+
+  /**
+   * Pauses or resumes the simulation
+   */
+  private toggleSimulationPause() {
+    this.simulationState = {
+      ...this.simulationState,
+      isPaused: !this.simulationState.isPaused
+    };
+
+    if (!this.simulationState.isPaused) {
+      this.startAnimationLoop();
+      this.startTelemetryUpdates();
+    } else {
+      this.stopAnimationLoop();
+      this.stopTelemetryUpdates();
+    }
+  }
+
+  /**
+   * Stops the simulation and resets state
+   */
+  private stopSimulation() {
+    this.simulationState = {
+      ...this.simulationState,
+      isActive: false,
+      isPaused: false,
+      progress: 0,
+      elapsedTime: 0,
+      distanceTraveled: 0
+    };
+
+    this.showTopBar = false;
+    this.stopAnimationLoop();
+    this.stopTelemetryUpdates();
+    this.removeDroneMarker();
+    this.removeTrailPolyline();
+    this.droneTrail.positions = [];
+  }
+
+  /**
+   * Resets simulation to the first waypoint
+   */
+  private resetSimulation() {
+    this.simulationState = {
+      ...this.simulationState,
+      currentWaypointIndex: 0,
+      progress: 0,
+      elapsedTime: 0,
+      distanceTraveled: 0
+    };
+
+    this.droneTrail.positions = [];
+    this.initializeDronePosition();
+  }
+
+  /**
+   * Sets simulation speed multiplier
+   */
+  private setSimulationSpeed(multiplier: number) {
+    this.simulationState = {
+      ...this.simulationState,
+      speedMultiplier: Math.max(0.1, Math.min(10, multiplier))
+    };
+  }
+
+  /**
+   * Initializes drone position at the first waypoint
+   */
+  private initializeDronePosition() {
+    const waypoints = Array.from(this.waypoints.values()).sort((a, b) => 
+      parseInt(a.id.replace('waypoint-', '')) - parseInt(b.id.replace('waypoint-', ''))
+    );
+
+    if (waypoints.length === 0) return;
+
+    const firstWaypoint = waypoints[0];
+    this.droneTelemetry = {
+      ...this.droneTelemetry,
+      latitude: firstWaypoint.lat,
+      longitude: firstWaypoint.lng,
+      altitude: firstWaypoint.altitude,
+      speed: firstWaypoint.speed,
+      heading: waypoints.length > 1 ? this.calculateHeading(firstWaypoint, waypoints[1]) : 0,
+      battery: 100
+    };
+
+    this.createDroneMarker();
+  }
+
+  /**
+   * Calculates total mission distance
+   */
+  private calculateTotalDistance(): number {
+    const waypoints = Array.from(this.waypoints.values()).sort((a, b) => 
+      parseInt(a.id.replace('waypoint-', '')) - parseInt(b.id.replace('waypoint-', ''))
+    );
+
+    let totalDistance = 0;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      totalDistance += this.calculateDistance(waypoints[i], waypoints[i + 1]);
+    }
+    return totalDistance;
+  }
+
+  /**
+   * Calculates distance between two waypoints in meters
+   */
+  private calculateDistance(point1: {lat: number, lng: number}, point2: {lat: number, lng: number}): number {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+    const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) * 
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  /**
+   * Calculates heading between two waypoints in degrees
+   */
+  private calculateHeading(from: {lat: number, lng: number}, to: {lat: number, lng: number}): number {
+    const dLng = (to.lng - from.lng) * Math.PI / 180;
+    const lat1 = from.lat * Math.PI / 180;
+    const lat2 = to.lat * Math.PI / 180;
+    
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    
+    let heading = Math.atan2(y, x) * 180 / Math.PI;
+    return (heading + 360) % 360; // Normalize to 0-360 degrees
+  }
+
+  /**
+   * Main animation loop using requestAnimationFrame
+   */
+  private startAnimationLoop() {
+    if (!this.simulationState.isActive || this.simulationState.isPaused) return;
+
+    const animate = () => {
+      if (!this.simulationState.isActive || this.simulationState.isPaused) return;
+
+      this.updateDronePosition();
+      this.updateDroneMarker();
+      this.updateTrail();
+      
+      this.simulationAnimationId = requestAnimationFrame(animate);
+    };
+
+    this.simulationAnimationId = requestAnimationFrame(animate);
+  }
+
+  /**
+   * Stops the animation loop
+   */
+  private stopAnimationLoop() {
+    if (this.simulationAnimationId) {
+      cancelAnimationFrame(this.simulationAnimationId);
+      this.simulationAnimationId = undefined;
+    }
+  }
+
+  /**
+   * Updates drone position along the waypoint path
+   */
+  private updateDronePosition() {
+    const waypoints = Array.from(this.waypoints.values()).sort((a, b) => 
+      parseInt(a.id.replace('waypoint-', '')) - parseInt(b.id.replace('waypoint-', ''))
+    );
+
+    if (waypoints.length < 2) return;
+
+    const currentIndex = this.simulationState.currentWaypointIndex;
+    if (currentIndex >= waypoints.length - 1) {
+      // Mission complete
+      this.stopSimulation();
+      alert('Mission completed!');
+      return;
+    }
+
+    const currentWaypoint = waypoints[currentIndex];
+    const nextWaypoint = waypoints[currentIndex + 1];
+    
+    // Calculate movement step based on speed and time
+    const deltaTime = 16.67 / 1000; // ~60fps in seconds
+    const actualSpeed = nextWaypoint.speed * this.simulationState.speedMultiplier;
+    const distanceStep = actualSpeed * deltaTime; // meters per frame
+    
+    const segmentDistance = this.calculateDistance(currentWaypoint, nextWaypoint);
+    const progressStep = distanceStep / segmentDistance;
+    
+    // Update progress
+    this.simulationState.progress += progressStep;
+    
+    // Check if we've reached the next waypoint
+    if (this.simulationState.progress >= 1) {
+      this.simulationState.currentWaypointIndex++;
+      this.simulationState.progress = 0;
+      
+      if (this.simulationState.stepMode) {
+        this.toggleSimulationPause();
+      }
+      return;
+    }
+    
+    // Interpolate position between waypoints
+    const progress = this.simulationState.progress;
+    const newLat = currentWaypoint.lat + (nextWaypoint.lat - currentWaypoint.lat) * progress;
+    const newLng = currentWaypoint.lng + (nextWaypoint.lng - currentWaypoint.lng) * progress;
+    const newAlt = currentWaypoint.altitude + (nextWaypoint.altitude - currentWaypoint.altitude) * progress;
+    
+    // Apply wind effects
+    const windOffset = this.calculateWindEffect();
+    
+    // Update telemetry
+    this.droneTelemetry = {
+      ...this.droneTelemetry,
+      latitude: newLat + windOffset.lat,
+      longitude: newLng + windOffset.lng,
+      altitude: newAlt,
+      speed: actualSpeed,
+      heading: this.calculateHeading({lat: newLat, lng: newLng}, nextWaypoint),
+      groundSpeed: this.calculateGroundSpeed(actualSpeed),
+      distanceToWaypoint: segmentDistance * (1 - progress),
+      timeToWaypoint: (segmentDistance * (1 - progress)) / actualSpeed
+    };
+    
+    // Update elapsed time and distance
+    this.simulationState.elapsedTime = (Date.now() - this.simulationState.startTime) / 1000;
+    this.simulationState.distanceTraveled += distanceStep;
+    
+    // Add position to trail
+    this.addToTrail();
+  }
+
+  /**
+   * Calculates wind effect on drone position
+   */
+  private calculateWindEffect(): {lat: number, lng: number} {
+    const windSpeed = this.weatherEffect.windVector.x + this.weatherEffect.windVector.y;
+    const windFactor = windSpeed * 0.0001; // Small offset factor
+    
+    return {
+      lat: this.weatherEffect.windVector.y * windFactor,
+      lng: this.weatherEffect.windVector.x * windFactor
+    };
+  }
+
+  /**
+   * Calculates ground speed considering wind effects
+   */
+  private calculateGroundSpeed(airSpeed: number): number {
+    const windSpeed = Math.sqrt(
+      this.weatherEffect.windVector.x ** 2 + this.weatherEffect.windVector.y ** 2
+    );
+    
+    // Simplified ground speed calculation
+    return Math.max(0, airSpeed - windSpeed * 0.1);
+  }
+
+  /**
+   * Updates weather effects based on current weather data
+   */
+  private updateWeatherEffects() {
+    if (this.missionWeather?.wind) {
+      const windDir = this.missionWeather.wind.deg * Math.PI / 180;
+      const windSpeed = this.missionWeather.wind.speed;
+      
+      this.weatherEffect = {
+        windVector: {
+          x: Math.cos(windDir) * windSpeed,
+          y: Math.sin(windDir) * windSpeed
+        },
+        visibility: this.missionWeather.visibility || 10000,
+        precipitation: this.missionWeather.description.includes('rain') || 
+                      this.missionWeather.description.includes('snow'),
+        turbulence: windSpeed > 10 ? 0.3 : windSpeed > 5 ? 0.1 : 0
+      };
+      
+      // Update telemetry wind data
+      this.droneTelemetry = {
+        ...this.droneTelemetry,
+        windSpeed: windSpeed,
+        windDirection: this.missionWeather.wind.deg
+      };
+    }
+  }
+
+  /**
+   * Creates the drone marker on the map
+   */
+  private createDroneMarker() {
+    if (!this.map) return;
+
+    // Remove existing drone marker
+    this.removeDroneMarker();
+
+    // Create drone icon SVG
+    const droneIcon = document.createElement('div');
+    droneIcon.innerHTML = `
+      <div style="
+        width: 24px; 
+        height: 24px; 
+        background: #FF6B35;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: white;
+        transform: rotate(${this.droneTelemetry.heading}deg);
+        transition: transform 0.1s ease;
+      ">🛸</div>
+    `;
+
+    this.droneMarker = new google.maps.marker.AdvancedMarkerElement({
+      map: this.map,
+      position: { lat: this.droneTelemetry.latitude, lng: this.droneTelemetry.longitude },
+      content: droneIcon,
+      title: `Drone - Alt: ${this.droneTelemetry.altitude}m, Speed: ${this.droneTelemetry.speed.toFixed(1)}m/s`
+    });
+  }
+
+  /**
+   * Updates drone marker position and heading
+   */
+  private updateDroneMarker() {
+    if (!this.droneMarker) return;
+
+    // Update position
+    this.droneMarker.position = { 
+      lat: this.droneTelemetry.latitude, 
+      lng: this.droneTelemetry.longitude 
+    };
+
+    // Update heading and title
+    const content = this.droneMarker.content as HTMLElement;
+    const droneDiv = content.querySelector('div') as HTMLElement;
+    if (droneDiv) {
+      droneDiv.style.transform = `rotate(${this.droneTelemetry.heading}deg)`;
+    }
+    
+    this.droneMarker.title = `Drone - Alt: ${this.droneTelemetry.altitude}m, Speed: ${this.droneTelemetry.speed.toFixed(1)}m/s`;
+  }
+
+  /**
+   * Removes drone marker from map
+   */
+  private removeDroneMarker() {
+    if (this.droneMarker) {
+      this.droneMarker.map = null;
+      this.droneMarker = undefined;
+    }
+  }
+
+  /**
+   * Adds current position to the trail
+   */
+  private addToTrail() {
+    const position: DronePosition = {
+      lat: this.droneTelemetry.latitude,
+      lng: this.droneTelemetry.longitude,
+      altitude: this.droneTelemetry.altitude,
+      heading: this.droneTelemetry.heading,
+      timestamp: Date.now()
+    };
+
+    this.droneTrail.positions.push(position);
+
+    // Limit trail length
+    if (this.droneTrail.positions.length > this.droneTrail.maxLength) {
+      this.droneTrail.positions.shift();
+    }
+  }
+
+  /**
+   * Updates the trail polyline on the map
+   */
+  private updateTrail() {
+    if (!this.map || this.droneTrail.positions.length < 2) return;
+
+    // Remove existing trail
+    this.removeTrailPolyline();
+
+    // Create new trail polyline
+    const trailPath = this.droneTrail.positions.map(pos => ({ lat: pos.lat, lng: pos.lng }));
+    
+    this.trailPolyline = new google.maps.Polyline({
+      path: trailPath,
+      geodesic: true,
+      strokeColor: '#FF6B35',
+      strokeOpacity: 0.6,
+      strokeWeight: 3,
+      map: this.map
+    });
+  }
+
+  /**
+   * Removes trail polyline from map
+   */
+  private removeTrailPolyline() {
+    if (this.trailPolyline) {
+      this.trailPolyline.setMap(null);
+      this.trailPolyline = undefined;
+    }
+  }
+
+  /**
+   * Starts telemetry updates at specified frequency
+   */
+  private startTelemetryUpdates() {
+    this.stopTelemetryUpdates();
+    
+    // Update telemetry at 20Hz (50ms intervals) for smooth updates
+    this.telemetryUpdateInterval = window.setInterval(() => {
+      if (!this.simulationState.isActive || this.simulationState.isPaused) return;
+      
+      // Update battery level (simple simulation)
+      const batteryDrainRate = 0.001; // 0.1% per second at 1x speed
+      const currentDrain = batteryDrainRate * this.simulationState.speedMultiplier;
+      this.droneTelemetry = {
+        ...this.droneTelemetry,
+        battery: Math.max(0, this.droneTelemetry.battery - currentDrain)
+      };
+      
+      // Update estimated time remaining
+      const remainingDistance = this.simulationState.totalDistance - this.simulationState.distanceTraveled;
+      const avgSpeed = this.droneTelemetry.groundSpeed || 1;
+      this.simulationState.estimatedTimeRemaining = remainingDistance / avgSpeed;
+      
+      // Trigger re-render for UI updates
+      this.requestUpdate();
+    }, 50); // 20Hz updates
+  }
+
+  /**
+   * Stops telemetry updates
+   */
+  private stopTelemetryUpdates() {
+    if (this.telemetryUpdateInterval) {
+      clearInterval(this.telemetryUpdateInterval);
+      this.telemetryUpdateInterval = undefined;
+    }
+  }
+
   private handleApiKeySave() {
     // Use environment variable if available, otherwise use input values
     const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
