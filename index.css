@@ -173,6 +173,16 @@ body {
   text-align: center;
 }
 
+.env-notice {
+  background-color: #34a853;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  text-align: center;
+  margin: 8px 0;
+}
+
 
 /* Default layout: Wide screens (map left, sidebar right) */
 .gdm-map-app {

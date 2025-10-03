@@ -60,6 +60,26 @@ const GOOGLE_MAPS_API_KEY_STORAGE_KEY = 'googleMapsApiKey';
 const WEATHER_API_KEY_STORAGE_KEY = 'weatherApiKey';
 const LOS_ANGELES_CENTER = {lat: 34.0522, lng: -118.2437};
 
+// Environment variable helper functions
+const getEnvironmentVariable = (key: string): string | null => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || null;
+  }
+  return null;
+};
+
+const getGoogleMapsApiKey = (): string | null => {
+  // Try environment variable first, then local storage
+  return getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY') || 
+         localStorage.getItem(GOOGLE_MAPS_API_KEY_STORAGE_KEY);
+};
+
+const getWeatherApiKey = (): string | null => {
+  // Try environment variable first, then local storage
+  return getEnvironmentVariable('VITE_WEATHER_API_KEY') || 
+         localStorage.getItem(WEATHER_API_KEY_STORAGE_KEY);
+};
+
 /**
  * MapApp component for a mission planner with Google Maps.
  */
@@ -90,13 +110,15 @@ export class MapApp extends LitElement {
   }
 
   protected firstUpdated() {
-    const savedGoogleApiKey = localStorage.getItem(
-      GOOGLE_MAPS_API_KEY_STORAGE_KEY,
-    );
+    // Check for API key from environment variables first, then local storage
+    const savedGoogleApiKey = getGoogleMapsApiKey();
 
     if (savedGoogleApiKey) {
       this.showApiKeyModal = false;
       this.loadMap(savedGoogleApiKey);
+    } else {
+      // Show modal if no API key is available
+      this.showApiKeyModal = true;
     }
   }
 
@@ -186,7 +208,7 @@ export class MapApp extends LitElement {
   }
 
   private async fetchWeather(lat: number, lng: number) {
-    const apiKey = localStorage.getItem(WEATHER_API_KEY_STORAGE_KEY);
+    const apiKey = getWeatherApiKey();
     if (!apiKey) {
       this.weather = null;
       return;
@@ -209,15 +231,22 @@ export class MapApp extends LitElement {
   }
 
   private handleApiKeySave() {
-    const googleApiKey = this.googleApiKeyInputElement?.value;
-    const weatherApiKey = this.weatherApiKeyInputElement?.value;
+    // Use environment variable if available, otherwise use input values
+    const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
+    const googleApiKey = envGoogleKey || this.googleApiKeyInputElement?.value;
+    
+    const envWeatherKey = getEnvironmentVariable('VITE_WEATHER_API_KEY');
+    const weatherApiKey = envWeatherKey || this.weatherApiKeyInputElement?.value;
 
     if (googleApiKey) {
-      localStorage.setItem(GOOGLE_MAPS_API_KEY_STORAGE_KEY, googleApiKey);
-      if (weatherApiKey) {
+      // Only save to localStorage if not using environment variables
+      if (!envGoogleKey) {
+        localStorage.setItem(GOOGLE_MAPS_API_KEY_STORAGE_KEY, googleApiKey);
+      }
+      if (weatherApiKey && !envWeatherKey) {
         localStorage.setItem(WEATHER_API_KEY_STORAGE_KEY, weatherApiKey);
-      } else {
-        // If the weather key is empty, remove it from storage.
+      } else if (!weatherApiKey && !envWeatherKey) {
+        // If the weather key is empty and not in env, remove it from storage.
         localStorage.removeItem(WEATHER_API_KEY_STORAGE_KEY);
       }
       this.showApiKeyModal = false;
@@ -502,56 +531,65 @@ export class MapApp extends LitElement {
   }
 
   private renderApiKeyModal() {
+    const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
+    const envWeatherKey = getEnvironmentVariable('VITE_WEATHER_API_KEY');
+    
     return html`
       <div class="api-key-modal-backdrop">
         <div
           class="api-key-modal"
           role="dialog"
           aria-labelledby="api-key-heading">
-          <h2 id="api-key-heading">API Key Required</h2>
-          <p>
-            This app requires a Google Maps API key to function. A key for
-            OpenWeatherMap is optional but enables the live weather display.
-          </p>
-          <div class="form-group">
-            <label for="google-api-key-input"
-              >Google Maps API Key (Required)</label
-            >
-            <input
-              type="text"
-              id="google-api-key-input"
-              placeholder="Enter Google Maps key"
-              @input=${this.handleApiKeyInput} />
-            <a
-              href="https://developers.google.com/maps/documentation/javascript/get-api-key"
-              target="_blank"
-              rel="noopener"
-              >Get a Maps Key</a
-            >
-          </div>
-          <div class="form-group">
-            <label for="weather-api-key-input"
-              >OpenWeatherMap API Key (Optional)</label
-            >
-            <input
-              type="text"
-              id="weather-api-key-input"
-              placeholder="Enter OpenWeatherMap key"
-              @input=${this.handleApiKeyInput} />
-            <a
-              href="https://openweathermap.org/appid"
-              target="_blank"
-              rel="noopener"
-              >Get a Weather Key</a
-            >
-          </div>
+          <h2 id="api-key-heading">API Configuration</h2>
+          ${envGoogleKey 
+            ? html`<p class="env-notice">✓ Google Maps API key loaded from environment variables.</p>`
+            : html`<p>This app requires a Google Maps API key to function. A key for OpenWeatherMap is optional but enables the live weather display.</p>`
+          }
+          ${!envGoogleKey ? html`
+            <div class="form-group">
+              <label for="google-api-key-input"
+                >Google Maps API Key (Required)</label
+              >
+              <input
+                type="text"
+                id="google-api-key-input"
+                placeholder="Enter Google Maps key"
+                .value=${getGoogleMapsApiKey() || ''}
+                @input=${this.handleApiKeyInput} />
+              <a
+                href="https://developers.google.com/maps/documentation/javascript/get-api-key"
+                target="_blank"
+                rel="noopener"
+                >Get a Maps Key</a
+              >
+            </div>
+          ` : ''}
+          ${!envWeatherKey ? html`
+            <div class="form-group">
+              <label for="weather-api-key-input"
+                >OpenWeatherMap API Key (Optional)</label
+              >
+              <input
+                type="text"
+                id="weather-api-key-input"
+                placeholder="Enter OpenWeatherMap key"
+                .value=${getWeatherApiKey() || ''}
+                @input=${this.handleApiKeyInput} />
+              <a
+                href="https://openweathermap.org/appid"
+                target="_blank"
+                rel="noopener"
+                >Get a Weather Key</a
+              >
+            </div>
+          ` : html`<p class="env-notice">✓ Weather API key loaded from environment variables.</p>`}
           ${this.apiKeyError
             ? html`<div class="api-key-error" role="alert">
                 ${this.apiKeyError}
               </div>`
             : ''}
           <button class="save-api-key-button" @click=${this.handleApiKeySave}>
-            Save and Load Map
+            ${envGoogleKey ? 'Continue with Environment Keys' : 'Save and Load Map'}
           </button>
         </div>
       </div>

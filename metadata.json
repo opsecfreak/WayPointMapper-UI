@@ -1,5 +1,5 @@
 {
-  "name": "Mission Planner",
-  "description": "An interactive mission planner UI to create and visualize operations with customizable waypoints on a map.",
+  "name": "Waypoint Mapper UI",
+  "description": "An interactive waypoint mapping interface for mission planning with Google Maps integration, featuring customizable waypoints, satellite view, and real-time weather data.",
   "requestFramePermissions": []
 }
