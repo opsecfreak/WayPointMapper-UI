@@ -550,6 +550,283 @@ export class MapApp extends LitElement {
     input.click();
   }
 
+  /**
+   * Generate and download a comprehensive PDF mission briefing
+   * Includes MTS UAV Division branding and detailed mission analysis
+   */
+  private generatePDFBriefing() {
+    if (this.waypoints.size === 0) {
+      alert('No waypoints to include in briefing. Please add waypoints first.');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const metadata = this.calculateMissionMetadata();
+      const conditions = this.missionWeather ? analyzeFlightConditions(this.missionWeather) : null;
+      const waypoints = Array.from(this.waypoints.values());
+      
+      // Header with MTS UAV Division branding
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('UAV MISSION BRIEFING', 105, 20, { align: 'center' });
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'normal');
+      doc.text(COMPANY_INFO.name, 105, 30, { align: 'center' });
+      doc.text(COMPANY_INFO.tagline, 105, 37, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.text(`${COMPANY_INFO.website} | ${COMPANY_INFO.uavSite}`, 105, 44, { align: 'center' });
+      
+      // Mission Overview
+      let yPos = 60;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('MISSION OVERVIEW', 20, yPos);
+      
+      yPos += 10;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Mission Name: ${this.currentMission?.name || 'Unnamed Mission'}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Date Generated: ${new Date().toLocaleString()}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Total Waypoints: ${waypoints.length}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Total Distance: ${(metadata.totalDistance / 1000).toFixed(2)} km`, 20, yPos);
+      yPos += 7;
+      doc.text(`Estimated Flight Time: ${Math.floor(metadata.estimatedFlightTime / 60)}m ${Math.round(metadata.estimatedFlightTime % 60)}s`, 20, yPos);
+      yPos += 7;
+      doc.text(`Maximum Altitude: ${metadata.maxAltitude} m AGL`, 20, yPos);
+
+      // Weather Conditions
+      yPos += 20;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('WEATHER CONDITIONS', 20, yPos);
+      
+      if (this.missionWeather) {
+        yPos += 10;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Location: ${this.missionWeather.city}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Temperature: ${Math.round(this.missionWeather.tempF)}°F (${Math.round(this.missionWeather.temp)}°C)`, 20, yPos);
+        yPos += 7;
+        doc.text(`Feels Like: ${Math.round(this.missionWeather.feelsLikeF || 0)}°F`, 20, yPos);
+        yPos += 7;
+        doc.text(`Conditions: ${this.missionWeather.description}`, 20, yPos);
+        yPos += 7;
+        
+        if (this.missionWeather.wind) {
+          doc.text(`Wind: ${this.missionWeather.wind.speed} m/s from ${this.missionWeather.wind.deg}°`, 20, yPos);
+          if (this.missionWeather.wind.gust) {
+            doc.text(`Gusts: ${this.missionWeather.wind.gust} m/s`, 120, yPos);
+          }
+          yPos += 7;
+        }
+        
+        doc.text(`Visibility: ${this.missionWeather.visibility ? (this.missionWeather.visibility / 1000).toFixed(1) + ' km' : 'N/A'}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Humidity: ${this.missionWeather.humidity}%`, 20, yPos);
+        yPos += 7;
+        doc.text(`Pressure: ${this.missionWeather.pressure} hPa`, 20, yPos);
+
+        // Flight Condition Analysis
+        if (conditions) {
+          yPos += 15;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('FLIGHT CONDITION ANALYSIS', 20, yPos);
+          
+          yPos += 10;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Overall Suitability: ${conditions.flightSuitability.toUpperCase()}`, 20, yPos);
+          yPos += 7;
+          doc.text(`Wind Condition: ${conditions.windCondition.toUpperCase()}`, 20, yPos);
+          yPos += 7;
+          doc.text(`Visibility: ${conditions.visibilityCondition.toUpperCase()}`, 20, yPos);
+          yPos += 7;
+          doc.text(`Temperature: ${conditions.temperatureCondition.toUpperCase()}`, 20, yPos);
+
+          if (conditions.warnings.length > 0) {
+            yPos += 10;
+            doc.setFont('helvetica', 'bold');
+            doc.text('WARNINGS:', 20, yPos);
+            doc.setFont('helvetica', 'normal');
+            conditions.warnings.forEach(warning => {
+              yPos += 7;
+              doc.text(`• ${warning}`, 25, yPos);
+            });
+          }
+
+          if (conditions.recommendations.length > 0) {
+            yPos += 10;
+            doc.setFont('helvetica', 'bold');
+            doc.text('RECOMMENDATIONS:', 20, yPos);
+            doc.setFont('helvetica', 'normal');
+            conditions.recommendations.forEach(rec => {
+              yPos += 7;
+              doc.text(`• ${rec}`, 25, yPos);
+            });
+          }
+        }
+      }
+
+      // Add new page for waypoint details if needed
+      if (yPos > 220) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 20;
+      }
+
+      // Waypoint Details
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('WAYPOINT DETAILS', 20, yPos);
+      
+      yPos += 10;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('WP#', 20, yPos);
+      doc.text('Label', 35, yPos);
+      doc.text('Latitude', 80, yPos);
+      doc.text('Longitude', 120, yPos);
+      doc.text('Altitude (m)', 160, yPos);
+      
+      yPos += 5;
+      doc.setFont('helvetica', 'normal');
+      
+      waypoints.forEach((wp, index) => {
+        if (yPos > 280) {
+          doc.addPage();
+          yPos = 20;
+        }
+        yPos += 7;
+        doc.text(`${index + 1}`, 20, yPos);
+        doc.text(wp.label, 35, yPos);
+        doc.text(wp.lat.toFixed(6), 80, yPos);
+        doc.text(wp.lng.toFixed(6), 120, yPos);
+        doc.text(wp.altitude.toString(), 160, yPos);
+      });
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated by ${COMPANY_INFO.name} Mission Planner`, 105, 290, { align: 'center' });
+      doc.text(`Contact: ${COMPANY_INFO.website}`, 105, 295, { align: 'center' });
+
+      // Save the PDF
+      const fileName = `mission_briefing_${new Date().toISOString().slice(0,10)}.pdf`;
+      doc.save(fileName);
+      
+    } catch (error) {
+      console.error('Error generating PDF briefing:', error);
+      alert('Error generating PDF briefing. Please try again.');
+    }
+  }
+
+  /**
+   * Export mission data as KML file for use with Google Earth and other mapping software
+   */
+  private exportKML() {
+    if (this.waypoints.size === 0) {
+      alert('No waypoints to export. Please add waypoints first.');
+      return;
+    }
+
+    try {
+      const waypoints = Array.from(this.waypoints.values());
+      
+      // Create GeoJSON structure for tokml
+      const geojson = {
+        type: 'FeatureCollection',
+        features: [
+          // Add waypoints as points
+          ...waypoints.map((wp, index) => ({
+            type: 'Feature',
+            properties: {
+              name: wp.label,
+              description: `Waypoint ${index + 1}\nAltitude: ${wp.altitude}m\nNotes: ${wp.notes || 'None'}`,
+              altitude: wp.altitude
+            },
+            geometry: {
+              type: 'Point',
+              coordinates: [wp.lng, wp.lat, wp.altitude]
+            }
+          })),
+          // Add flight path as a line
+          {
+            type: 'Feature',
+            properties: {
+              name: 'Flight Path',
+              description: `Total distance: ${(this.calculateMissionMetadata().totalDistance / 1000).toFixed(2)} km`,
+              stroke: '#FF0000',
+              'stroke-width': 3
+            },
+            geometry: {
+              type: 'LineString',
+              coordinates: waypoints.map(wp => [wp.lng, wp.lat, wp.altitude])
+            }
+          }
+        ]
+      };
+
+      const kml = tokml(geojson, {
+        documentName: this.currentMission?.name || 'UAV Mission',
+        documentDescription: `Generated by ${COMPANY_INFO.name} on ${new Date().toLocaleString()}`
+      });
+
+      // Download the KML file
+      const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mission_${new Date().toISOString().slice(0,10)}.kml`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error exporting KML:', error);
+      alert('Error exporting KML file. Please try again.');
+    }
+  }
+
+  /**
+   * Export waypoints as CSV file for spreadsheet analysis
+   */
+  private exportCSV() {
+    if (this.waypoints.size === 0) {
+      alert('No waypoints to export. Please add waypoints first.');
+      return;
+    }
+
+    try {
+      const waypoints = Array.from(this.waypoints.values());
+      const csvContent = [
+        'Waypoint,Label,Latitude,Longitude,Altitude_m,Notes,Color,Is_Home',
+        ...waypoints.map((wp, index) => 
+          `${index + 1},"${wp.label}",${wp.lat},${wp.lng},${wp.altitude},"${wp.notes}",${wp.color},${wp.isHome}`
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `waypoints_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Error exporting CSV file. Please try again.');
+    }
+  }
+
   private handleApiKeySave() {
     // Use environment variable if available, otherwise use input values
     const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
