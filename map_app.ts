@@ -2898,6 +2898,214 @@ export class MapApp extends LitElement {
     `;
   }
 
+  /**
+   * Renders the simulation control panel tab
+   */
+  private renderSimulationTab() {
+    const waypoints = Array.from(this.waypoints.values());
+    const hasWaypoints = waypoints.length >= 2;
+
+    return html`
+      <div class="simulation-tab" role="tabpanel">
+        <h3>🚁 Mission Simulation</h3>
+        
+        ${!hasWaypoints ? html`
+          <div class="simulation-warning">
+            <p>⚠️ Add at least 2 waypoints to enable simulation</p>
+          </div>
+        ` : ''}
+
+        <!-- Main Simulation Controls -->
+        <div class="simulation-controls">
+          <h4>Primary Controls</h4>
+          <div class="control-buttons">
+            ${!this.simulationState.isActive ? html`
+              <button 
+                class="start-simulation-btn"
+                @click=${this.startSimulation}
+                ?disabled=${!hasWaypoints}>
+                ▶️ Start Simulation
+              </button>
+            ` : html`
+              <button 
+                class="pause-simulation-btn ${this.simulationState.isPaused ? 'paused' : ''}"
+                @click=${this.toggleSimulationPause}>
+                ${this.simulationState.isPaused ? '▶️ Resume' : '⏸️ Pause'}
+              </button>
+              <button 
+                class="stop-simulation-btn"
+                @click=${this.stopSimulation}>
+                ⏹️ Stop
+              </button>
+              <button 
+                class="reset-simulation-btn"
+                @click=${this.resetSimulation}>
+                🔄 Reset
+              </button>
+            `}
+          </div>
+        </div>
+
+        <!-- Speed Control -->
+        <div class="speed-control">
+          <h4>Simulation Speed</h4>
+          <div class="speed-slider-container">
+            <label for="speed-slider">Speed: ${this.simulationState.speedMultiplier}x</label>
+            <input 
+              type="range" 
+              id="speed-slider"
+              min="0.1" 
+              max="10" 
+              step="0.1"
+              .value=${this.simulationState.speedMultiplier.toString()}
+              @input=${(e: Event) => {
+                const target = e.target as HTMLInputElement;
+                this.setSimulationSpeed(parseFloat(target.value));
+              }}
+              ?disabled=${!this.simulationState.isActive} />
+            <div class="speed-presets">
+              <button @click=${() => this.setSimulationSpeed(0.5)} ?disabled=${!this.simulationState.isActive}>0.5x</button>
+              <button @click=${() => this.setSimulationSpeed(1.0)} ?disabled=${!this.simulationState.isActive}>1x</button>
+              <button @click=${() => this.setSimulationSpeed(2.0)} ?disabled=${!this.simulationState.isActive}>2x</button>
+              <button @click=${() => this.setSimulationSpeed(5.0)} ?disabled=${!this.simulationState.isActive}>5x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="simulation-options">
+          <h4>Options</h4>
+          <div class="option-controls">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                .checked=${this.simulationState.stepMode}
+                @change=${(e: Event) => {
+                  const target = e.target as HTMLInputElement;
+                  this.simulationState = { ...this.simulationState, stepMode: target.checked };
+                }} />
+              Step-by-step waypoint mode
+            </label>
+            
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                .checked=${this.showTopBar}
+                @change=${(e: Event) => {
+                  const target = e.target as HTMLInputElement;
+                  this.showTopBar = target.checked;
+                }} />
+              Show telemetry top bar
+            </label>
+          </div>
+        </div>
+
+        <!-- Simulation Status -->
+        ${this.simulationState.isActive ? html`
+          <div class="simulation-status">
+            <h4>Mission Status</h4>
+            <div class="status-grid">
+              <div class="status-item">
+                <span class="label">Current Waypoint:</span>
+                <span class="value">${this.simulationState.currentWaypointIndex + 1} / ${waypoints.length}</span>
+              </div>
+              <div class="status-item">
+                <span class="label">Progress:</span>
+                <span class="value">${((this.simulationState.distanceTraveled / this.simulationState.totalDistance) * 100).toFixed(1)}%</span>
+              </div>
+              <div class="status-item">
+                <span class="label">Distance:</span>
+                <span class="value">${(this.simulationState.distanceTraveled / 1000).toFixed(2)} / ${(this.simulationState.totalDistance / 1000).toFixed(2)} km</span>
+              </div>
+              <div class="status-item">
+                <span class="label">Flight Time:</span>
+                <span class="value">${Math.floor(this.simulationState.elapsedTime / 60)}:${Math.floor(this.simulationState.elapsedTime % 60).toString().padStart(2, '0')}</span>
+              </div>
+              <div class="status-item">
+                <span class="label">Battery:</span>
+                <span class="value battery-${this.droneTelemetry.battery < 20 ? 'low' : this.droneTelemetry.battery < 50 ? 'medium' : 'high'}">
+                  ${this.droneTelemetry.battery.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Telemetry Display -->
+        ${this.simulationState.isActive ? html`
+          <div class="telemetry-display">
+            <h4>Live Telemetry</h4>
+            <div class="telemetry-grid">
+              <div class="telemetry-item">
+                <span class="label">Position:</span>
+                <span class="value">${this.droneTelemetry.latitude.toFixed(6)}, ${this.droneTelemetry.longitude.toFixed(6)}</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="label">Altitude:</span>
+                <span class="value">${this.droneTelemetry.altitude.toFixed(1)} m</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="label">Speed:</span>
+                <span class="value">${this.droneTelemetry.speed.toFixed(1)} m/s</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="label">Heading:</span>
+                <span class="value">${this.droneTelemetry.heading.toFixed(0)}°</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="label">Ground Speed:</span>
+                <span class="value">${this.droneTelemetry.groundSpeed.toFixed(1)} m/s</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="label">Wind:</span>
+                <span class="value">${this.droneTelemetry.windSpeed.toFixed(1)} m/s @ ${this.droneTelemetry.windDirection}°</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Trail Control -->
+        <div class="trail-control">
+          <h4>Flight Trail</h4>
+          <div class="trail-options">
+            <label for="trail-length">Max trail points: ${this.droneTrail.maxLength}</label>
+            <input 
+              type="range" 
+              id="trail-length"
+              min="10" 
+              max="500" 
+              step="10"
+              .value=${this.droneTrail.maxLength.toString()}
+              @input=${(e: Event) => {
+                const target = e.target as HTMLInputElement;
+                this.droneTrail = { ...this.droneTrail, maxLength: parseInt(target.value) };
+              }} />
+            <button 
+              @click=${() => {
+                this.droneTrail.positions = [];
+                this.removeTrailPolyline();
+              }}>
+              Clear Trail
+            </button>
+          </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="simulation-help">
+          <h4>How to Use</h4>
+          <ul>
+            <li>Add waypoints on the map first</li>
+            <li>Start simulation to see animated drone movement</li>
+            <li>Use speed controls for fast-forward or slow motion</li>
+            <li>Enable step mode to pause at each waypoint</li>
+            <li>Monitor telemetry data in real-time</li>
+            <li>Weather effects influence drone movement</li>
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
   private renderApiKeyModal() {
     const envGoogleKey = getEnvironmentVariable('VITE_GOOGLE_MAPS_API_KEY');
     const envWeatherKey = getEnvironmentVariable('VITE_WEATHER_API_KEY');
